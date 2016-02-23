@@ -1,0 +1,17 @@
+logging:
+  level: INFO
+  appenders:
+    - type: console
+      threshold: ALL
+      target: stderr
+
+server:
+  type: simple
+  applicationContextPath: /
+  adminContextPath: /admin
+  connector:
+    type: http
+    port: 8080
+
+swagger:
+  resourcePackage: dk.dren.dwa.resources
