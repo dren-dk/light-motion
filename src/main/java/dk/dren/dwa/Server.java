@@ -45,11 +45,13 @@ public class Server extends Application<ServerConfiguration>{
 		//bootstrap.addCommand(new SomeCommand());
 		
 		// We'll need to serve static files from our own classpath, this causes /static/ in the classpath to be exposed as /static/
-		bootstrap.addBundle(new AssetsBundle("/static/", "/static/", "index.html", "static"));		
-		
+		bootstrap.addBundle(new AssetsBundle("/META-INF/resources/webjars/", "/webjars/", "index.html", "webjars"));
+		bootstrap.addBundle(new AssetsBundle("/static/", "/static/", "index.html", "static"));
+
+
 		// Webjars are managed artifacts that are simply re-packaged copies of the bower, npm and other client-side packages 
 		// This bundle brings in webjars in the mentioned package hierachies 
-		bootstrap.addBundle(new WebJarBundle("org.webjars.bower"));
+		//bootstrap.addBundle(new WebJarBundle("org.webjars.bower"));
 		
 		// As Dropwizard is primarily a REST application server, it makes sense to provide a nice user interface for trying out the
 		// REST calls and to allow the developer to explore the API documentation, so we set up swagger which lives at /swagger/:

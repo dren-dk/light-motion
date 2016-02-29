@@ -2,3 +2,7 @@
 .project
 .settings
 target
+.tern-project
+*.iml
+*.ipr
+*.iws

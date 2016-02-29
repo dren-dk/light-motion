@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" ng-app="phonecatApp">
+<head>
+  <meta charset="utf-8">
+  <title>step 02</title>
+
+  <link rel="stylesheet" href="/webjars/bootstrap/3.3.6/dist/css/bootstrap.css">
+  <script src="/webjars/bootstrap/3.3.6/dist/js/bootstrap.js"></script>
+
+  <script src="/webjars/angular/1.5.0/angular.js"></script>
+
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="step_02.js"></script>
+
+</head>
+<body ng-controller="PhoneListCtrl">
+  <h1>step 02</h1>
+
+  <ul>
+    <li ng-repeat="phone in phones">
+      <span>{{phone.name}}</span>
+      <p>{{phone.snippet}}</p>
+    </li>
+  </ul>
+
+  <p>See <a href="https://docs.angularjs.org/tutorial/step_02">Tutorial step 02</a></p>
+
+</body>
+</html>
