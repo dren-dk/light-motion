@@ -1,6 +1,8 @@
 package dk.dren.dwa;
 
+import dk.dren.dwa.healthchecks.DiskSpaceCheck;
 import dk.dren.dwa.injectors.InjectorBinder;
+import dk.dren.dwa.resources.FrontPageResource;
 import dk.dren.dwa.resources.HelloResource;
 import io.dropwizard.Application;
 import io.dropwizard.assets.AssetsBundle;
@@ -61,7 +63,7 @@ public class Server extends Application<ServerConfiguration>{
 	            return configuration.swaggerBundleConfiguration;
 	        }
 	    });
-		
+
 		// We like forms, so we'll bring in support for muti-part form data with with this bundle:
 		bootstrap.addBundle(new MultiPartBundle());		
 	}
@@ -71,8 +73,12 @@ public class Server extends Application<ServerConfiguration>{
 		// Register injectors.
 		environment.jersey().register(new InjectorBinder(configuration));
 
+		// Register healthchecks, there really should be many more than just one.
+		environment.healthChecks().register("Disk-space", new DiskSpaceCheck());
+
 		// Register resources
-		environment.jersey().register(HelloResource.class);		
+		environment.jersey().register(HelloResource.class);
+		environment.jersey().register(FrontPageResource.class);
 	}
 
 }

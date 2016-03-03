@@ -23,6 +23,17 @@
     </li>
   </ul>
 
+  <p>There are {{phones.length}} phones. The world says: {{world}}</p>
+
+  <table>
+    <tr ng-repeat="i in [0,1,2,3,4,5,6,7,8,9,10]">
+      <td ng-repeat="j in [0,1,2,3,4,5,6,7,8,9,10]">
+        {{i}}x{{j}}={{i*j}}
+      </td>
+    </tr>
+  </table>
+
+
   <p>See <a href="https://docs.angularjs.org/tutorial/step_02">Tutorial step 02</a></p>
 
 </body>
