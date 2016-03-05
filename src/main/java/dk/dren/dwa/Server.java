@@ -1,7 +1,9 @@
 package dk.dren.dwa;
 
+import dk.dren.dwa.db.PhoneDB;
 import dk.dren.dwa.healthchecks.DiskSpaceCheck;
 import dk.dren.dwa.injectors.InjectorBinder;
+import dk.dren.dwa.resources.AngularTutorialResource;
 import dk.dren.dwa.resources.FrontPageResource;
 import dk.dren.dwa.resources.HelloResource;
 import io.dropwizard.Application;
@@ -73,7 +75,7 @@ public class Server extends Application<ServerConfiguration>{
 	@Override
 	public void run(ServerConfiguration configuration, Environment environment) throws Exception {
 		// Register injectors.
-		environment.jersey().register(new InjectorBinder(configuration));
+		environment.jersey().register(new InjectorBinder(configuration, new PhoneDB()));
 
 		// Register healthchecks, there really should be many more than just one.
 		environment.healthChecks().register("Disk-space", new DiskSpaceCheck());
@@ -81,6 +83,7 @@ public class Server extends Application<ServerConfiguration>{
 		// Register resources
 		environment.jersey().register(HelloResource.class);
 		environment.jersey().register(FrontPageResource.class);
+		environment.jersey().register(AngularTutorialResource.class);
 	}
 
 }

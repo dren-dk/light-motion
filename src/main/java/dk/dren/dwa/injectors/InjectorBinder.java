@@ -1,5 +1,6 @@
 package dk.dren.dwa.injectors;
 
+import dk.dren.dwa.db.PhoneDB;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
 
 import dk.dren.dwa.ServerConfiguration;
@@ -8,6 +9,7 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class InjectorBinder extends AbstractBinder {
 	private final ServerConfiguration configuration;
+	private final PhoneDB phoneDB;
 
 	@Override
 	protected void configure() {
@@ -16,6 +18,8 @@ public class InjectorBinder extends AbstractBinder {
 
 		// We need some singletons, too
 		bind(configuration).to(ServerConfiguration.class);
+		bind(phoneDB).to(PhoneDB.class);
+
 	}
 
 }

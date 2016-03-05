@@ -21,3 +21,7 @@ If you're using IDEA, just import the project from the pom.xml, but this project
 so be sure to install the appropriate lombok plugin for IDEA see:
 https://github.com/mplushnikov/lombok-intellij-plugin
 
+The main class to start in IDEA or Eclipse is dk.dren.dwa.Server
+
+The banner.txt was generated with:
+http://patorjk.com/software/taag/#p=display&h=3&f=Big&t=DropWizard%0A%2B%0AAngularJS
