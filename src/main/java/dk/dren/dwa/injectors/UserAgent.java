@@ -15,7 +15,7 @@ public class UserAgent implements AutoCloseable {
 	
 	public UserAgent(String header) {
 		this.header = header;	
-		this.sucky = header!=null ? header.contains("MSIE") : false;
+		this.sucky = header!=null && header.contains("MSIE");
 	}
 
 	@Override

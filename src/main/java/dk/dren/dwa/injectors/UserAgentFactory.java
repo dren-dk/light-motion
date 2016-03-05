@@ -10,8 +10,8 @@ import org.glassfish.hk2.api.Factory;
 import lombok.extern.java.Log;
 
 /**
- * This takes care of creating and disposing of Thing instances, this is handy when you want to create something per-request,
- * rather than keep a singleton around.
+ * This takes care of creating and disposing of UserAgent instances, this is handy when you want to create something
+ * per-request rather than keep a singleton around.
  */
 @Log
 public class UserAgentFactory implements Factory<UserAgent> {

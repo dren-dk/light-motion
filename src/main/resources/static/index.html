@@ -13,30 +13,39 @@
 
 </head><body>
 
-<h1>Hello there</h1>
-<p>Welcome to the dropwizard + angular + webjars seed project, this project is a mix of:</p>
-<ul>
-  <li><a href="http://www.dropwizard.io/0.9.2/docs/getting-started.html">The Dropwizard tutorial</a></li>
-  <li><a href="https://docs.angularjs.org/tutorial/">The AngularJS tutorial</a></li>
-  <li>Example of setting up:<ul>
-    <li>Swagger at <a href="/swagger/">/swagger/</a></li>
-    <li>Dropwizard admin at <a href="/admin/">/admin/</a></li>
-    <li>static files are served from the classpaht out of /static/</li>
-    <li>Webjars are served from the classpath out of /webjars/</li>
-    <li>REST resources everywhere else.</li>
-  </ul></li>
+    <h1>Hi!</h1>
+    <p>Welcome to my dropwizard + angular + webjars seed project, this project is a mix of:</p>
+    <ul>
+        <li><a href="http://www.dropwizard.io/0.9.2/docs/getting-started.html">The Dropwizard tutorial</a></li>
+        <li><a href="https://docs.angularjs.org/tutorial/">The AngularJS tutorial</a></li>
+        <li>Example of how to inject singletons and per-request objects using hk2</li>
+        <li>Example of how to use webjars rather than rely on The Entire Internet for your client side library needs as the
+          Javascript folks like to do, which is strangely hard to find example code for.</li>
+    </ul>
 
-  <li>Example of how to inject singletons and per-request objects using hk2</li>
-  <li>Example of how to use webjars rather than rely on The Internet for your client side library needs, which is strangely hard to find example code for.</li>
-</ul>
+    <p>The intention is that this project is simple enough to allow you to understand why everything is here and to allow
+        you to simply copy the project and use it as a starting point for a new dropwizard project, it's not aiming to show
+        off all dropwizard or angular features or even serve as an example of "The Right Way" of doing things.</p>
 
-<h2>Angular Tutorial</h2>
-<p>As I work through the AngularJS tutorial I'll add the pages here, slightly adapted for my environment:</p>
-<ul>
-  <li><a href="/static/angular/step_00.html">step 00</a></li>
-  <li><a href="/static/angular/step_02.html">step 02</a></li>
-  <li><a href="/static/angular/step_03.html">step 03</a></li>
-</ul>
+    <h2>Contents of the web scope</h2>
+    <ul>
+        <li><a href="/swagger/">/swagger/</a>: Swagger</li>
+        <li><a href="/admin/">/admin/</a>: Dropwizard admin, note that a real, public server should have admin living on a separate, firewalled port</li>
+        <li><a href="/static/">/static/</a>: Static files served from the classpath, see resources/static/ in the source tree.</li>
+        <li>/webjars/: Webjars</li>
+        <li><a href="/">/</a>: This front page is a static file that normally lives at /static/index.html and would be served as via the assetbundle for /static/, but as that's an ugly uri to expose, I've set up a very simple resource to serve it via / too</li>
+        <li><a href="/hello/">/hello/</a>: A very simple hello-world resource, check it out via swagger or just hit: <a href="/hello/text/there">/hello/text/there</a>, <a href="/hello/text/world">/hello/text/world</a> or <a href="/hello/text/you">/hello/text/you</a></li>
+        <li>Having the different parts of the app live in separate subdirs like this allow new resources, like REST services to be hooked up everywhere else in the web scope, which is what I like to do, but it's also possible to do it <a href="https://spin.atomicobject.com/2014/10/11/serving-static-assets-with-dropwizard/">the other way around and serve static files out of / and have the rest services limited to /api/</a>, though that would conflict with swagger.</li>
+    </ul>
+
+
+    <h2>Angular Tutorial</h2>
+    <p>As I work through the AngularJS tutorial I'll add the pages here, slightly adapted for my environment:</p>
+    <ul>
+      <li><a href="/static/angular/step_00.html">step 00</a></li>
+      <li><a href="/static/angular/step_02.html">step 02</a></li>
+      <li><a href="/static/angular/step_03.html">step 03</a></li>
+    </ul>
 
 </body></html>
 

@@ -10,7 +10,7 @@ import javax.ws.rs.core.StreamingOutput;
 import java.io.InputStream;
 
 /**
- * Serves up the front page.
+ * Serves up the front page, though without playing nice with caches, because there's no ETag or conditional get support.
  */
 @Path("/")
 public class FrontPageResource {

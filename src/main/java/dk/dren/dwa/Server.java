@@ -6,13 +6,15 @@ import dk.dren.dwa.resources.FrontPageResource;
 import dk.dren.dwa.resources.HelloResource;
 import io.dropwizard.Application;
 import io.dropwizard.assets.AssetsBundle;
-import io.dropwizard.bundles.webjars.WebJarBundle;
 import io.dropwizard.forms.MultiPartBundle;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 import io.federecio.dropwizard.swagger.SwaggerBundle;
 import io.federecio.dropwizard.swagger.SwaggerBundleConfiguration;
 
+/**
+ * This is the main bootstrapping class of the application, it's what brings all the bits together and starts the application
+ */
 public class Server extends Application<ServerConfiguration>{
 
 	/**
@@ -52,7 +54,7 @@ public class Server extends Application<ServerConfiguration>{
 
 
 		// Webjars are managed artifacts that are simply re-packaged copies of the bower, npm and other client-side packages 
-		// This bundle brings in webjars in the mentioned package hierachies 
+		// This bundle brings in webjars in the mentioned package hierachies, but it doesn't play nice with IDEA, nor Eclipse so I don't use it here.
 		//bootstrap.addBundle(new WebJarBundle("org.webjars.bower"));
 		
 		// As Dropwizard is primarily a REST application server, it makes sense to provide a nice user interface for trying out the

@@ -14,6 +14,9 @@ import com.wordnik.swagger.annotations.ApiParam;
 import dk.dren.dwa.ServerConfiguration;
 import dk.dren.dwa.injectors.UserAgent;
 
+/**
+ * This is an example REST service that takes a simple path parameter.
+ */
 @Api(value = "/hello", description = "Various kinds of saying hello")
 @Path("/hello/")
 public class HelloResource {
@@ -34,8 +37,4 @@ public class HelloResource {
 	public String get(@ApiParam(value = "The thing to greet, possibly the world", required = true) @PathParam("world")String world) {
 		return "Hello "+world; 
 	}
-	
-	
-	
-	
 }
