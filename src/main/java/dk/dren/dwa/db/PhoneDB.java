@@ -17,7 +17,9 @@ public class PhoneDB {
 
     public PhoneDB() throws IOException {
         // This is slightly silly, here we read in the json from the classpath only to have Dropwizard turn it
-        // right back into json for AngularJS, but this demonstrates how easy it is to both read
+        // right back into json for AngularJS, but this demonstrates how easy it is to read json using Jackson
+        // and it allows this example project to work without a real database,
+        // btw if you need a database, look no further than dropwizard-jdbi and PostgreSQL
         ObjectMapper mapper = new ObjectMapper();
         try (InputStream is = PhoneDB.class.getResourceAsStream("/static/angular/phones/phones.json")) {
             phones = mapper.readValue(is, new TypeReference<List<Phone>>(){});
