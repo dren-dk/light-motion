@@ -19,7 +19,6 @@ public class InjectorBinder extends AbstractBinder {
 		// We need some singletons, too
 		bind(configuration).to(ServerConfiguration.class);
 		bind(phoneDB).to(PhoneDB.class);
-
 	}
 
 }
