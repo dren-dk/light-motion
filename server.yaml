@@ -13,5 +13,3 @@ server:
     type: http
     port: 8080
 
-swagger:
-  resourcePackage: dk.dren.dwa.resources

@@ -61,10 +61,12 @@ public class Server extends Application<ServerConfiguration>{
 		
 		// As Dropwizard is primarily a REST application server, it makes sense to provide a nice user interface for trying out the
 		// REST calls and to allow the developer to explore the API documentation, so we set up swagger which lives at /swagger/:
+		SwaggerBundleConfiguration swaggerConfig = new SwaggerBundleConfiguration();
+		swaggerConfig.setResourcePackage("dk.dren.dwa.resources");
 		bootstrap.addBundle(new SwaggerBundle<ServerConfiguration>() {
 	        @Override
 	        protected SwaggerBundleConfiguration getSwaggerBundleConfiguration(ServerConfiguration configuration) {
-	            return configuration.swaggerBundleConfiguration;
+	            return swaggerConfig;
 	        }
 	    });
 

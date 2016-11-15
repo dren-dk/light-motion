@@ -15,6 +15,4 @@ import lombok.Data;
 @Data
 public class ServerConfiguration extends Configuration {
 
-	@JsonProperty("swagger")
-    public SwaggerBundleConfiguration swaggerBundleConfiguration;
 }

@@ -7,12 +7,12 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 
 import com.codahale.metrics.annotation.Timed;
-import com.wordnik.swagger.annotations.Api;
-import com.wordnik.swagger.annotations.ApiOperation;
-import com.wordnik.swagger.annotations.ApiParam;
 
 import dk.dren.dwa.ServerConfiguration;
 import dk.dren.dwa.injectors.UserAgent;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 
 /**
  * This is an example REST service that takes a simple path parameter.
@@ -37,4 +37,6 @@ public class HelloResource {
 	public String get(@ApiParam(value = "The thing to greet, possibly the world", required = true) @PathParam("world")String world) {
 		return "Hello "+world; 
 	}
+
+
 }

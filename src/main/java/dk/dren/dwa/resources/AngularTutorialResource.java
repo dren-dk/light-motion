@@ -1,9 +1,9 @@
 package dk.dren.dwa.resources;
 
-import com.wordnik.swagger.annotations.Api;
-import com.wordnik.swagger.annotations.ApiOperation;
 import dk.dren.dwa.api.Phone;
 import dk.dren.dwa.db.PhoneDB;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
@@ -22,7 +22,7 @@ import java.util.List;
 public class AngularTutorialResource {
 
     @Inject
-    PhoneDB phoneDB;
+    private PhoneDB phoneDB;
 
     @ApiOperation(value = "Lists all phones", response = Phone.class, responseContainer="List")
     @Path("phones")
@@ -31,6 +31,4 @@ public class AngularTutorialResource {
     public List<Phone> getPhones() throws IOException {
         return phoneDB.findAllPhones();
     }
-
-
 }
