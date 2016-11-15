@@ -107,6 +107,23 @@ Not releasded yet and I don't want to depend on a locally compiled artifact, so 
           <version>3.3.6</version>
       </dependency>
 
+      <dependency>
+          <groupId>org.webjars.bower</groupId>
+          <artifactId>babel-standalone</artifactId>
+          <version>6.14.0</version>
+      </dependency>
+
+      <dependency>
+          <groupId>org.webjars.bower</groupId>
+          <artifactId>react</artifactId>
+          <version>15.3.2</version>
+      </dependency>
+      <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>4.12</version>
+      </dependency>
+
   </dependencies>
 	
   <build>

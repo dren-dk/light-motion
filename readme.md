@@ -38,3 +38,10 @@ ASCII art Banner
 
 The banner.txt was generated with:
 http://patorjk.com/software/taag/#p=display&h=3&f=Big&t=DropWizard%0A%2B%0AAngularJS
+
+
+React
+-----
+
+After getting the basics of Angular done, I started looking at React.io, but I would like to 
+avoid npm and node forever, so I'll be running babel-standalone on Nashhorn.
