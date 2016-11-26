@@ -7,7 +7,7 @@
 
   <groupId>dk.dren.dwa</groupId>
   <artifactId>dropwizard-angular-seed</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>1.0.4-SNAPSHOT</version>
   <name>Dropwizard meets AngularJS</name>
   <url>https://github.com/dren-dk/dropwizard-angularjs-seed</url>
   <description>This is a simple Dropwizard server with AngularJS via webjars</description>
@@ -16,7 +16,7 @@
     <!-- use UTF-8 for everything -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <dropwizard.version>1.0.3</dropwizard.version>
+    <dropwizard.version>1.0.4</dropwizard.version>
   </properties>
   
   <dependencies>
@@ -75,7 +75,20 @@ Not releasded yet and I don't want to depend on a locally compiled artifact, so 
           <version>2.5</version>
       </dependency>
 
+      <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-pool2 -->
+      <dependency>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-pool2</artifactId>
+          <version>2.4.2</version>
+      </dependency>
 
+      <!-- https://mvnrepository.com/artifact/commons-codec/commons-codec -->
+      <dependency>
+          <groupId>commons-codec</groupId>
+          <artifactId>commons-codec</artifactId>
+          <version>1.10</version>
+      </dependency>
+      
       <dependency>
           <groupId>org.webjars.bower</groupId>
           <artifactId>angular</artifactId>

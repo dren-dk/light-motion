@@ -7,7 +7,7 @@ import java.util.Properties;
 import java.util.TreeMap;
 
 /**
- * Utility class for accessing members of web jars without hardcoding the version number.
+ * Utility class for accessing members of web jars without hardcoding the version number of the webjar all over the code.
  */
 public class WebJars {
     private final Map<String, String> knownVersions = new TreeMap<>();
@@ -26,6 +26,9 @@ public class WebJars {
             final Properties properties = new Properties();
             properties.load(pomPropertiesStream);
             final String version = properties.getProperty("version");
+            if (version == null) {
+                throw new IOException("Failed to finde the version property in "+pomProperties);
+            }
             knownVersions.put(artifactName, version);
             return version;
         }

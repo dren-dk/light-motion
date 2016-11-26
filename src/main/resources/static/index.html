@@ -30,6 +30,7 @@
         <li>/webjars/: Webjars</li>
         <li><a href="/">/</a>: This front page is a static file that normally lives at /static/index.html and would be served as via the assetbundle for /static/, but as that's an ugly uri to expose, I've set up a very simple resource to serve it via / too</li>
         <li><a href="/hello/">/hello/</a>: A very simple hello-world resource, check it out via swagger or just hit: <a href="/hello/text/there">/hello/text/there</a>, <a href="/hello/text/world">/hello/text/world</a> or <a href="/hello/text/you">/hello/text/you</a></li>
+        <li><a href="/static/react/">/react/</a>: Playing around with react</li>
         <li>Having the different parts of the app live in separate subdirs like this allow new resources, like REST services to be hooked up everywhere else in the web scope, which is what I like to do, but it's also possible to do it <a href="https://spin.atomicobject.com/2014/10/11/serving-static-assets-with-dropwizard/">the other way around and serve static files out of / and have the rest services limited to /api/</a>, though that would conflict with swagger.</li>
     </ul>
 

@@ -4,6 +4,7 @@ import dk.dren.dwa.db.PhoneDB;
 import dk.dren.dwa.healthchecks.DiskSpaceCheck;
 import dk.dren.dwa.injectors.InjectorBinder;
 import dk.dren.dwa.resources.AngularTutorialResource;
+import dk.dren.dwa.resources.BabelResource;
 import dk.dren.dwa.resources.FrontPageResource;
 import dk.dren.dwa.resources.HelloResource;
 import io.dropwizard.Application;
@@ -86,6 +87,9 @@ public class Server extends Application<ServerConfiguration>{
 		environment.jersey().register(HelloResource.class);
 		environment.jersey().register(FrontPageResource.class);
 		environment.jersey().register(AngularTutorialResource.class);
+		environment.jersey().register(BabelResource.class);
+
+		;
 	}
 
 }
