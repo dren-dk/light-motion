@@ -1,4 +1,4 @@
-package dk.dren.dwa;
+package dk.dren.lightmotion;
 
 import io.dropwizard.Configuration;
 import lombok.Data;
@@ -11,5 +11,7 @@ import lombok.Data;
  */
 @Data
 public class ServerConfiguration extends Configuration {
+
+    private List<CameraConfig>
 
 }
