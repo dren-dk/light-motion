@@ -1,4 +1,4 @@
-package dk.dren.dwa.injectors;
+package dk.dren.lightmotion.injectors;
 
 import lombok.Getter;
 

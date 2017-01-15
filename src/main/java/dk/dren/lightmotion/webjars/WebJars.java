@@ -1,4 +1,4 @@
-package dk.dren.dwa.webjars;
+package dk.dren.lightmotion.webjars;
 
 import java.io.IOException;
 import java.io.InputStream;

@@ -1,4 +1,4 @@
-package dk.dren.dwa.resources;
+package dk.dren.lightmotion.resources;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
@@ -8,8 +8,8 @@ import javax.ws.rs.Produces;
 
 import com.codahale.metrics.annotation.Timed;
 
-import dk.dren.dwa.ServerConfiguration;
-import dk.dren.dwa.injectors.UserAgent;
+import dk.dren.lightmotion.config.ServerConfiguration;
+import dk.dren.lightmotion.injectors.UserAgent;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;

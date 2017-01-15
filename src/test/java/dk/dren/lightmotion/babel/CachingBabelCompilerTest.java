@@ -1,7 +1,7 @@
-package dk.dren.dwa.babel;
+package dk.dren.lightmotion.babel;
 
-import dk.dren.dwa.cache.DiskCache;
-import dk.dren.dwa.webjars.WebJars;
+import dk.dren.lightmotion.cache.DiskCache;
+import dk.dren.lightmotion.webjars.WebJars;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.junit.Test;

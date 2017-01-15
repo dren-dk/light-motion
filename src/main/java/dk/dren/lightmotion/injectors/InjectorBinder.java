@@ -1,9 +1,9 @@
-package dk.dren.dwa.injectors;
+package dk.dren.lightmotion.injectors;
 
-import dk.dren.dwa.db.PhoneDB;
+import dk.dren.lightmotion.db.PhoneDB;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
 
-import dk.dren.dwa.ServerConfiguration;
+import dk.dren.lightmotion.config.ServerConfiguration;
 import lombok.AllArgsConstructor;
 
 @AllArgsConstructor

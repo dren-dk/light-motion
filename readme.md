@@ -1,18 +1,28 @@
-Dropwizard+AngularJS
-====================
+Light Motion
+============
 
-This is an example project that shows a couple of simple things
-that can be done with some of my favoite tools:
-* Dropwizard
-* AngularJS
-* Project Lombok
+This is a very light weight motion detection system for cheap chinese IP cameras with the following two key features:
+* Streaming of h.264 over RTSP
+* Low resolution snapshots as jpeg via http
+
+The goal is to be able to do motion detection and full-framerate recording from at least 10
+cameras on an aging Atom.
+
+The h.264 stream is normally stored on disk in a circular buffer in small increments without any processing at all.
+
+The low resolution snapshots are used to do motion detection with a few seconds of latency at the speed the CPU can
+handle, so graceful degradation is possible.
+
+The alternative to using the jpeg snapshots would be to stream one of the secondary
+low-resolution / low-framerate h.264 streams from the camera, but decoding a fixed
+framerate h.264 stream at 1-5 fps is much heavier than doing jpeg decoding at fractional fps.
 
 
 Building And Running
 --------------------
 
 * Build executable jar using: mvn package
-* Run the app server using: java -jar target/dropwizard-angular-seed-0.0.1-SNAPSHOT.jar server server.yaml
+* Run the app server using: java -jar target/light-motion-0.0.1-SNAPSHOT.jar server server.yaml
 * Open a browser and hit: http://localhost:8080/
 
 
@@ -20,28 +30,24 @@ Using IntelliJ IDEA
 -------------------
 
 * Import the project from the pom.xml
-* The main class to start is dk.dren.dwa.Server
+* The main class to start is dk.dren.lightmotion.Server
 * This project uses Lombok to cut down on boilerplate, so be sure to install the appropriate lombok plugin for IDEA see: https://github.com/mplushnikov/lombok-intellij-plugin
 
 
-Using Eclipse
--------------
-
-* Build eclipse project using: mvn eclipse:eclipse
-* The main class to start is dk.dren.dwa.Server
-* To get eclipse to work with lombok, run java -jar lombok.jar and point the installer at your eclipse dir.
-* I could not get the AngularJS-eclipse plugin to work, so I stopped using Eclipse, but you might have better luck-
-
-
-ASCII art Banner
+Securing Cameras
 ----------------
 
-The banner.txt was generated with:
-http://patorjk.com/software/taag/#p=display&h=3&f=Big&t=DropWizard%0A%2B%0AAngularJS
+Even though the web interface on cheap/chinese cameras demand a login
+(admin/admin is a fairly common default) to allow access, I have found that the RTSP
+interface is not similarly secured, so anyone can stream from the camera without credentials.
 
+The ONVIF interface forces the client to hash the password, so the camera has to store the password
+to verify it, which is bad practice.
 
-React
------
+Bottom line:
+* Cheap chinese ONVIF cameras are an insecure abomination out of the box
+* If you choose a password, it will be stored and leaked when the camera is stolen.
+* RTSP is insecure, so never put these cameras on an untrusted network.
 
-After getting the basics of Angular done, I started looking at React.io, but I would like to 
-avoid npm and node forever, so I'll be running babel-standalone on Nashhorn.
+Make sure that all the ddns/p2p "features" are turned off and firewall the cameras
+from the Internet, user-accessible LAN and each other.

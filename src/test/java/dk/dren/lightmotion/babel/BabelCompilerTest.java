@@ -1,6 +1,6 @@
-package dk.dren.dwa.babel;
+package dk.dren.lightmotion.babel;
 
-import dk.dren.dwa.webjars.WebJars;
+import dk.dren.lightmotion.webjars.WebJars;
 import org.junit.Test;
 
 import static org.junit.Assert.*;

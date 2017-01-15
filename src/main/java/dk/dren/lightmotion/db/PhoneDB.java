@@ -1,8 +1,8 @@
-package dk.dren.dwa.db;
+package dk.dren.lightmotion.db;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dk.dren.dwa.api.Phone;
+import dk.dren.lightmotion.api.Phone;
 
 import java.io.IOException;
 import java.io.InputStream;

@@ -1,7 +1,11 @@
-package dk.dren.lightmotion;
+package dk.dren.lightmotion.config;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.dropwizard.Configuration;
 import lombok.Data;
+import org.hibernate.validator.constraints.NotEmpty;
+
+import java.util.List;
 
 
 /**
@@ -12,6 +16,8 @@ import lombok.Data;
 @Data
 public class ServerConfiguration extends Configuration {
 
-    private List<CameraConfig>
+    @NotEmpty
+    @JsonProperty
+    private List<CameraConfig> cameras;
 
 }

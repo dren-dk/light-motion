@@ -1,6 +1,6 @@
-package dk.dren.dwa.babel;
+package dk.dren.lightmotion.babel;
 
-import dk.dren.dwa.webjars.WebJars;
+import dk.dren.lightmotion.webjars.WebJars;
 import lombok.extern.java.Log;
 import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
@@ -12,7 +12,6 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import java.io.IOException;
-import java.util.NoSuchElementException;
 import java.util.logging.Level;
 
 /**

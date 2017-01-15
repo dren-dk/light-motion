@@ -1,7 +1,7 @@
-package dk.dren.dwa.resources;
+package dk.dren.lightmotion.resources;
 
-import dk.dren.dwa.api.Phone;
-import dk.dren.dwa.db.PhoneDB;
+import dk.dren.lightmotion.api.Phone;
+import dk.dren.lightmotion.db.PhoneDB;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 

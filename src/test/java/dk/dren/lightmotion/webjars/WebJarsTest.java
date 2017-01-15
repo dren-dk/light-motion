@@ -1,9 +1,7 @@
-package dk.dren.dwa.webjars;
+package dk.dren.lightmotion.webjars;
 
 import org.apache.commons.io.IOUtils;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 /**
  * Try out the WebJars class

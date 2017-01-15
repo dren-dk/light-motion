@@ -1,4 +1,4 @@
-package dk.dren.dwa.api;
+package dk.dren.lightmotion.api;
 
 import lombok.Data;
 

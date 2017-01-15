@@ -1,4 +1,4 @@
-package dk.dren.dwa.babel;
+package dk.dren.lightmotion.babel;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

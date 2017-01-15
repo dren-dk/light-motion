@@ -1,4 +1,4 @@
-package dk.dren.dwa.healthchecks;
+package dk.dren.lightmotion.healthchecks;
 
 import com.codahale.metrics.health.HealthCheck;
 

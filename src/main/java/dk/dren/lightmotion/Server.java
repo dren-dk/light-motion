@@ -1,12 +1,13 @@
-package dk.dren.dwa;
+package dk.dren.lightmotion;
 
-import dk.dren.dwa.db.PhoneDB;
-import dk.dren.dwa.healthchecks.DiskSpaceCheck;
-import dk.dren.dwa.injectors.InjectorBinder;
-import dk.dren.dwa.resources.AngularTutorialResource;
-import dk.dren.dwa.resources.BabelResource;
-import dk.dren.dwa.resources.FrontPageResource;
-import dk.dren.dwa.resources.HelloResource;
+import dk.dren.lightmotion.config.ServerConfiguration;
+import dk.dren.lightmotion.db.PhoneDB;
+import dk.dren.lightmotion.healthchecks.DiskSpaceCheck;
+import dk.dren.lightmotion.injectors.InjectorBinder;
+import dk.dren.lightmotion.resources.AngularTutorialResource;
+import dk.dren.lightmotion.resources.BabelResource;
+import dk.dren.lightmotion.resources.FrontPageResource;
+import dk.dren.lightmotion.resources.HelloResource;
 import io.dropwizard.Application;
 import io.dropwizard.assets.AssetsBundle;
 import io.dropwizard.forms.MultiPartBundle;
@@ -38,7 +39,7 @@ public class Server extends Application<ServerConfiguration>{
 	 */
 	@Override
 	public String getName() {
-		return "Dropwizard and Angular";
+		return "Light Motion";
 	}
 
 
@@ -55,15 +56,8 @@ public class Server extends Application<ServerConfiguration>{
 		bootstrap.addBundle(new AssetsBundle("/META-INF/resources/webjars/", "/webjars/", "index.html", "webjars"));
 		bootstrap.addBundle(new AssetsBundle("/static/", "/static/", "index.html", "static"));
 
-
-		// Webjars are managed artifacts that are simply re-packaged copies of the bower, npm and other client-side packages 
-		// This bundle brings in webjars in the mentioned package hierachies, but it doesn't play nice with IDEA, nor Eclipse so I don't use it here.
-		//bootstrap.addBundle(new WebJarBundle("org.webjars.bower"));
-		
-		// As Dropwizard is primarily a REST application server, it makes sense to provide a nice user interface for trying out the
-		// REST calls and to allow the developer to explore the API documentation, so we set up swagger which lives at /swagger/:
 		SwaggerBundleConfiguration swaggerConfig = new SwaggerBundleConfiguration();
-		swaggerConfig.setResourcePackage("dk.dren.dwa.resources");
+		swaggerConfig.setResourcePackage("dk.dren.lightmotion.resources");
 		bootstrap.addBundle(new SwaggerBundle<ServerConfiguration>() {
 	        @Override
 	        protected SwaggerBundleConfiguration getSwaggerBundleConfiguration(ServerConfiguration configuration) {
@@ -71,8 +65,7 @@ public class Server extends Application<ServerConfiguration>{
 	        }
 	    });
 
-		// We like forms, so we'll bring in support for muti-part form data with with this bundle:
-		bootstrap.addBundle(new MultiPartBundle());		
+		bootstrap.addBundle(new MultiPartBundle());
 	}
 
 	@Override
@@ -88,8 +81,6 @@ public class Server extends Application<ServerConfiguration>{
 		environment.jersey().register(FrontPageResource.class);
 		environment.jersey().register(AngularTutorialResource.class);
 		environment.jersey().register(BabelResource.class);
-
-		;
 	}
 
 }

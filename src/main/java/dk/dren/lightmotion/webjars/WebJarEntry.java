@@ -1,4 +1,4 @@
-package dk.dren.dwa.webjars;
+package dk.dren.lightmotion.webjars;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

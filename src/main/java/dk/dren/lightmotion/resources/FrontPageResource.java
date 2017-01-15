@@ -1,4 +1,4 @@
-package dk.dren.dwa.resources;
+package dk.dren.lightmotion.resources;
 
 import com.codahale.metrics.annotation.Timed;
 import org.apache.commons.io.IOUtils;
