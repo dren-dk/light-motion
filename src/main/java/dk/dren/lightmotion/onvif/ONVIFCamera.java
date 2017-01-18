@@ -17,7 +17,6 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.soap.SOAPException;
 import java.io.IOException;
@@ -26,16 +25,17 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
-import static javax.xml.parsers.DocumentBuilderFactory.*;
+import static javax.xml.parsers.DocumentBuilderFactory.newInstance;
 
 /**
  * This class contains the ONVIF information that we care about having for a camera and the gnarly interaction with
- * the onvif API needed to extrac the information from the camera
+ * the onvif API needed to extract the information from the camera
  */
 @Log
 @Getter
-public class CameraONVIF {
+public class ONVIFCamera {
     private static final DocumentBuilder PARSER;
     static {
         try {
@@ -51,7 +51,7 @@ public class CameraONVIF {
     private final String user;
     private final String password;
     private final int profileNumber;
-    private final String profileToken;
+    private final ONVIFProfile profile;
     private String time = getUTCTimeStamp();
 
     private String getUTCTimeStamp() {
@@ -61,28 +61,26 @@ public class CameraONVIF {
         return sdf.format(cal.getTime());
     }
 
-    public CameraONVIF(String cameraAddressAndPort, String user, String password, int profileNumber) throws SOAPException, IOException, SAXException {
+    public ONVIFCamera(String cameraAddressAndPort, String user, String password, int profileNumber) throws SOAPException, IOException, SAXException {
         this.cameraAddressAndPort = cameraAddressAndPort;
         this.user = user;
         this.password = password;
         this.profileNumber = profileNumber;
 
-//        String uri = "http://localhost:8084/onvif/device_service";
-
         try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
-            List<Element> profiles = callGetProfiles(client);
+            List<ONVIFProfile> profiles = callGetProfiles(client);
             if (profileNumber < 0 || profileNumber >= profiles.size()) {
                 int i = 0;
-                for (Element p : profiles) {
-                    log.info("Profile #" + i++ + ": " + p.getAttribute("token"));
+                for (ONVIFProfile p : profiles) {
+                    log.info("Profile #" + i++ + ": " + p);
                 }
                 throw new IllegalArgumentException("The profile number parameter for " + cameraAddressAndPort + " is out of range: 0 <= " + profileNumber + " < " + profiles.size());
             }
 
-            profileToken = profiles.get(profileNumber).getAttribute("token");
+            profile = profiles.get(profileNumber);
 
-            snapshotUri = callGetSnapshotUri(client, profileToken);
-            streamUri = callGetStreamUri(client, profileToken);
+            snapshotUri = callGetSnapshotUri(client, profile.getToken());
+            streamUri = callGetStreamUri(client, profile.getToken());
         }
     }
 
@@ -104,8 +102,8 @@ public class CameraONVIF {
         return xmlText(uris.get(0), "Uri");
     }
 
-    private List<Element> callGetProfiles(CloseableHttpClient client) throws IOException, SAXException {
-        return call(client, "GetProfiles");
+    private List<ONVIFProfile> callGetProfiles(CloseableHttpClient client) throws IOException, SAXException {
+        return call(client, "GetProfiles").stream().map(ONVIFProfile::new).collect(Collectors.toList());
     }
 
     List<Element> call(CloseableHttpClient client, String method, String... args) throws IOException, SAXException {
@@ -136,7 +134,6 @@ public class CameraONVIF {
                 throw new IOException("Failed to call "+method+" on "+uri+" with http error code " + reply.getStatusLine().getStatusCode()+" Request:\n"+requestXml);
             }
 
-
             Document doc = PARSER.parse(reply.getEntity().getContent());
 
             List<Element> result = xmlChildren(doc.getDocumentElement(), "Body", method + "Response");
@@ -148,7 +145,7 @@ public class CameraONVIF {
     }
 
     private static String getTemplate(String name) throws IOException {
-        try (InputStream requestXmlStream = CameraONVIF.class.getResourceAsStream("/onvif/" + name + ".xml")) {
+        try (InputStream requestXmlStream = ONVIFCamera.class.getResourceAsStream("/onvif/" + name + ".xml")) {
             if (requestXmlStream == null) {
                 throw new IllegalArgumentException("No request found for " + name);
             }
@@ -196,7 +193,7 @@ public class CameraONVIF {
         return sb.toString();
     }
 
-    private static Element xmlChild(Element element, String... tagNames) {
+    static Element xmlChild(Element element, String... tagNames) {
         String path = "";
         tag: for (String tag : tagNames) {
             if (!path.isEmpty()) {
@@ -217,7 +214,7 @@ public class CameraONVIF {
         return element;
     }
 
-    private static List<Element> xmlElements(NodeList nodes) {
+    static List<Element> xmlElements(NodeList nodes) {
         List<Element> result = new ArrayList<>();
         for (int i=0;i<nodes.getLength();i++) {
             Node item = nodes.item(i);
@@ -228,12 +225,22 @@ public class CameraONVIF {
         return result;
     }
 
-    private static List<Element> xmlChildren(Element element, String... tagNames) {
+    static List<Element> xmlChildren(Element element, String... tagNames) {
         return xmlElements(xmlChild(element, tagNames).getChildNodes());
     }
 
-    private static String xmlText(Element element, String... tagNames) {
+    static String xmlText(Element element, String... tagNames) {
         return xmlChild(element, tagNames).getTextContent();
     }
+
+    static Integer xmlInt(Element element, String... tagNames) {
+        Element ch = ONVIFCamera.xmlChild(element, tagNames);
+        if (ch != null) {
+            return Integer.valueOf(ch.getTextContent());
+        } else {
+            return null;
+        }
+    }
+
 
 }

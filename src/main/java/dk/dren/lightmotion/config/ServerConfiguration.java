@@ -1,23 +1,21 @@
 package dk.dren.lightmotion.config;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import dk.dren.lightmotion.core.LightMotionConfig;
 import io.dropwizard.Configuration;
 import lombok.Data;
-import org.hibernate.validator.constraints.NotEmpty;
 
-import java.util.List;
+import javax.validation.constraints.NotNull;
 
 
 /**
- * Add fields for the configuration in this class,
- * Dropwizard will take care of reading the server,yaml file.
- * Don't bother creating getters and setters, @Data from Lombok creates getters and setters automagically.
+ * This is the main configuration class, note that all the LM specific stuff is in a separate class, this is to make
+ * it possible to use the camera and motion detection code from other applications in the future.
  */
 @Data
 public class ServerConfiguration extends Configuration {
 
-    @NotEmpty
+    @NotNull
     @JsonProperty
-    private List<CameraConfig> cameras;
-
+    private LightMotionConfig lightMotion;
 }

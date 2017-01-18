@@ -57,7 +57,7 @@ public class TestOnvif {
     public void testPasswordHash() throws UnsupportedEncodingException {
         String nonceBase64 = "LTc4MjEyMzM4Ng==";
         String nonce = new String(Base64.decodeBase64(nonceBase64), "UTF-8");
-        Assert.assertEquals("12r4n9X85IdnhP9GfDmc4nwEKIg=", CameraONVIF.hashPassword("admin", "test", "2017-01-13T21:03:12Z", nonce));
+        Assert.assertEquals("12r4n9X85IdnhP9GfDmc4nwEKIg=", ONVIFCamera.hashPassword("admin", "test", "2017-01-13T21:03:12Z", nonce));
     }
 
     /* Failed:
@@ -77,7 +77,7 @@ public class TestOnvif {
     public void testPasswordHashBroken() throws UnsupportedEncodingException {
         String nonceBase64 = "MTU5OTlhNDc5ZGY=";
         String nonce = new String(Base64.decodeBase64(nonceBase64), "UTF-8");
-        Assert.assertEquals("BvSNMGwzTZOD2F3WA9hHNiWiNkg=", CameraONVIF.hashPassword("admin", "test", "2017-01-13T21:03:29Z", nonce));
+        Assert.assertEquals("BvSNMGwzTZOD2F3WA9hHNiWiNkg=", ONVIFCamera.hashPassword("admin", "test", "2017-01-13T21:03:29Z", nonce));
     }
 
     /*
@@ -147,7 +147,7 @@ public class TestOnvif {
             legacy.getMedia().getProfiles();
 */
 //            CameraONVIF cam = new CameraONVIF("10.0.2.9"+i+":8080", "admin", "admin", 0);
-            CameraONVIF cam = new CameraONVIF("10.0.2.9"+i+":8080", "admin", "test", 0);
+            ONVIFCamera cam = new ONVIFCamera("10.0.2.9"+i+":8080", "admin", "test", 0);
             log.info("Camera "+i+":\t"+cam.getSnapshotUri()+"\t"+cam.getStreamUri());
         }
 
@@ -159,6 +159,6 @@ public class TestOnvif {
     public void testTemplate() {
         Map<String, String> replacements = new TreeMap<>();
         replacements.put("hest", "fest");
-        Assert.assertEquals("testfest", CameraONVIF.interpolate("test${hest}", replacements));
+        Assert.assertEquals("testfest", ONVIFCamera.interpolate("test${hest}", replacements));
     }
 }

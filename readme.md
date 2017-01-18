@@ -42,10 +42,11 @@ Even though the web interface on cheap/chinese cameras demand a login
 interface is not similarly secured, so anyone can stream from the camera without credentials.
 
 The ONVIF interface forces the client to hash the password, so the camera has to store the password
-to verify it, which is bad practice.
+to verify it, which is bad practitce.
 
 Bottom line:
 * Cheap chinese ONVIF cameras are an insecure abomination out of the box
+* There is no way to really secure these cameras, so you have to rely on network segregation to keep the adversaries at bay.
 * If you choose a password, it will be stored and leaked when the camera is stolen.
 * RTSP is insecure, so never put these cameras on an untrusted network.
 

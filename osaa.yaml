@@ -1,0 +1,29 @@
+logging:
+  level: INFO
+  appenders:
+    - type: console
+      threshold: ALL
+      target: stderr
+
+server:
+  type: simple
+  applicationContextPath: /
+  adminContextPath: /admin
+  connector:
+    type: http
+    port: 8080
+
+
+lightMotion:
+  cameras:
+    - name: Skur
+      address: localhost:8090
+      user: admin
+      password: test
+    - name: Syd-Øst
+      address: localhost:8091
+    - name: Syd-Vest
+      address: localhost:8092
+    - name: Øst-Nord
+      address: localhost:8093
+

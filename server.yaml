@@ -13,3 +13,29 @@ server:
     type: http
     port: 8080
 
+
+lightMotion:
+  cameras:
+    - name: Skur
+      address: 10.0.2.90:8080
+      user: admin
+      password: test
+    - name: Syd-Øst
+      address: 10.0.2.91:8080
+    - name: Syd-Vest
+      address: 10.0.2.92:8080
+    - name: Øst-Nord
+      address: 10.0.2.93:8080
+    - name: Øst-Syd
+      address: 10.0.2.94:8080
+    - name: Nord-Vest
+      address: 10.0.2.95:8080
+    - name: Nord-Øst
+      address: 10.0.2.96:8080
+    - name: Vest-Syd
+      address: 10.0.2.97:8080
+    - name: Vest-Nord
+      address: 10.0.2.98:8080
+
+
+

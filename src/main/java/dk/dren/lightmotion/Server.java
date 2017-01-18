@@ -1,6 +1,7 @@
 package dk.dren.lightmotion;
 
 import dk.dren.lightmotion.config.ServerConfiguration;
+import dk.dren.lightmotion.core.LightMotion;
 import dk.dren.lightmotion.db.PhoneDB;
 import dk.dren.lightmotion.healthchecks.DiskSpaceCheck;
 import dk.dren.lightmotion.injectors.InjectorBinder;
@@ -71,6 +72,8 @@ public class Server extends Application<ServerConfiguration>{
 	@Override
 	public void run(ServerConfiguration configuration, Environment environment) throws Exception {
 		// Register injectors.
+		LightMotion cameraManager = new LightMotion(configuration.getLightMotion());
+
 		environment.jersey().register(new InjectorBinder(configuration, new PhoneDB()));
 
 		// Register healthchecks, there really should be many more than just one.
@@ -81,6 +84,8 @@ public class Server extends Application<ServerConfiguration>{
 		environment.jersey().register(FrontPageResource.class);
 		environment.jersey().register(AngularTutorialResource.class);
 		environment.jersey().register(BabelResource.class);
+
+		environment.lifecycle().manage(cameraManager);
 	}
 
 }
