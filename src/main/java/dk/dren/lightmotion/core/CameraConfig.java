@@ -60,4 +60,7 @@ public class CameraConfig {
      */
     @JsonProperty
     private Integer forceHeight;
+
+    @JsonProperty
+    private Boolean storeSnapshots = false;
 }

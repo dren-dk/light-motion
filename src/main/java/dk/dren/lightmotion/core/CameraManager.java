@@ -1,15 +1,22 @@
 package dk.dren.lightmotion.core;
 
+import dk.dren.lightmotion.core.snapshot.SnapshotProcessingManager;
 import dk.dren.lightmotion.onvif.ONVIFCamera;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.xml.sax.SAXException;
 
 import javax.xml.soap.SOAPException;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -38,11 +45,12 @@ public class CameraManager {
     private Process streamProcess;
     private boolean streamProcessRunning;
     private boolean streamProcessKilling;
+    private SnapshotProcessingManager snapshotProcessingManager;
 
     void start() {
         snapshotThread = new Thread(() -> {
             try {
-                Thread.sleep(2000);
+                snapshotProcessingManager = new SnapshotProcessingManager(this);
                 interrogateOnvif();
                 startStreamThread();
                 pollSnapshots();
@@ -114,13 +122,21 @@ public class CameraManager {
         streamThread.start();
     }
 
-    private static String getTimeStamp() {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
+    public static String getTimeStamp() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
         return sdf.format(new Date());
     }
 
-    private File workingDir() {
-        return new File(lightMotion.getConfig().getWorkingRoot(), "video/"+cameraConfig.getAddress());
+    public File camDir() {
+        return new File(lightMotion.getConfig().getWorkingRoot(), "cam/"+cameraConfig.getAddress());
+    }
+
+    public File workingDir() {
+        return new File(camDir(), "work");
+    }
+
+    public File videoDir() {
+        return new File(camDir(), "video");
     }
 
     private long getStreamerPid() {
@@ -165,7 +181,7 @@ public class CameraManager {
         while (keepRunning) {
 
             String timestamp = getTimeStamp();
-            FileUtils.forceMkdir(workingDir());
+            FileUtils.forceMkdir(videoDir());
 
             List<String> cmd = new ArrayList<>();
             cmd.add(lightMotion.getOpenRTSP().getAbsolutePath());
@@ -175,15 +191,15 @@ public class CameraManager {
             cmd.add("-f"); cmd.add(framerate.toString()); // Set framerate
             cmd.add("-w"); cmd.add(width.toString()); // Set width
             cmd.add("-h"); cmd.add(height.toString()); // Set width
-            cmd.add("-F"); cmd.add(workingDir().getAbsolutePath()+"/"+timestamp); // The output directory + file prefix
+            cmd.add("-F"); cmd.add(videoDir().getAbsolutePath()+"/"+timestamp); // The output directory + file prefix
             cmd.add("-P"); cmd.add(lightMotion.getConfig().getChunkLength().toString()); // Length of the chunks to record
             cmd.add(onvif.getStreamUri());
 
             log.info("Running: "+String.join(" ", cmd));
             ProcessBuilder pb = new ProcessBuilder(cmd);
-            pb.redirectError(new File(workingDir(), timestamp+".log"));
+            pb.redirectError(new File(videoDir(), timestamp+".log"));
             pb.redirectOutput(new File("/dev/null"));
-            pb.directory(workingDir());
+            pb.directory(videoDir());
 
             streamProcess = pb.start();
             streamProcessRunning = true;
@@ -208,11 +224,33 @@ public class CameraManager {
     /**
      * fetches a snapshot from the camera and stores it in the queue for the main thread to take care of
      */
-    private void pollSnapshots() throws InterruptedException {
-        while (keepRunning) {
-            // TODO: Block waiting for an image to download or block waiting to insert the image in the queue, never do any work.
+    private void pollSnapshots() throws InterruptedException, IOException {
+        try (CloseableHttpClient hc = HttpClients.createDefault()) {
+            while (keepRunning) {
 
-            Thread.sleep(lightMotion.getConfig().getPollInterval());
+                log.fine("Fetching "+onvif.getSnapshotUri());
+                HttpGet req = new HttpGet(onvif.getSnapshotUri());
+                try (CloseableHttpResponse response = hc.execute(req)) {
+                    if (response.getStatusLine().getStatusCode() != 200) {
+                        log.severe("Got error response "+response.getStatusLine().getStatusCode()+" from "+onvif.getSnapshotUri());
+                        Thread.sleep(5000);
+
+                    } else {
+                        byte[] imageBytes;
+                        try (InputStream content = response.getEntity().getContent()) {
+                            imageBytes = IOUtils.toByteArray(content);
+                        }
+
+                        // This might block while waiting for room in the queue, so we do this after closing the http response
+                        lightMotion.getSnapshots().add(new CameraSnapshot(snapshotProcessingManager, imageBytes));
+                    }
+
+                } catch (Exception e) {
+                    log.warning("Failed while requesting "+onvif.getSnapshotUri()+" "+e);
+                }
+
+                Thread.sleep(lightMotion.getConfig().getPollInterval());
+            }
         }
     }
 
@@ -224,6 +262,6 @@ public class CameraManager {
      * @param imageBytes The snapshot received from the camera.
      */
     public void processSnapshot(byte[] imageBytes) {
-
+        log.info("Processing image");
     }
 }

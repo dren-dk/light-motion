@@ -36,14 +36,7 @@ import static javax.xml.parsers.DocumentBuilderFactory.newInstance;
 @Log
 @Getter
 public class ONVIFCamera {
-    private static final DocumentBuilder PARSER;
-    static {
-        try {
-            PARSER = newInstance().newDocumentBuilder();
-        } catch (ParserConfigurationException e) {
-            throw new RuntimeException("Failed to get the DOM parser", e);
-        }
-    }
+    private final DocumentBuilder PARSER;
 
     private final String snapshotUri;
     private final String streamUri;
@@ -62,6 +55,12 @@ public class ONVIFCamera {
     }
 
     public ONVIFCamera(String cameraAddressAndPort, String user, String password, int profileNumber) throws SOAPException, IOException, SAXException {
+        try {
+            PARSER = newInstance().newDocumentBuilder();
+        } catch (ParserConfigurationException e) {
+            throw new RuntimeException("Failed to get the DOM parser", e);
+        }
+
         this.cameraAddressAndPort = cameraAddressAndPort;
         this.user = user;
         this.password = password;

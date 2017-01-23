@@ -1,5 +1,7 @@
 package dk.dren.lightmotion.core;
 
+import dk.dren.lightmotion.core.events.LightMotionEvent;
+import dk.dren.lightmotion.core.events.LightMotionEventConsumer;
 import io.dropwizard.lifecycle.Managed;
 import lombok.Getter;
 import lombok.extern.java.Log;
@@ -16,12 +18,13 @@ import java.util.logging.Level;
  * The core class of the light motion system
  */
 @Log
-public class LightMotion implements Managed {
+public class LightMotion implements Managed, LightMotionEventConsumer {
     @Getter
     private LightMotionConfig config;
     private Thread motionThread;
     private boolean keepRunning = true;
     private final Map<String, CameraManager> cameraManagers = new TreeMap<>();
+    @Getter
     private final ArrayBlockingQueue<CameraSnapshot> snapshots;
 
     public LightMotion(LightMotionConfig config) throws IOException {
@@ -79,7 +82,11 @@ public class LightMotion implements Managed {
     }
 
     private void checkForMotion() throws InterruptedException {
-        snapshots.take().processSnapshot();
+        try {
+            snapshots.take().processSnapshot();
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Failed while processing snapshot, ignoring", e);
+        }
     }
 
     private void startCameraThreads() throws InterruptedException {
@@ -97,5 +104,10 @@ public class LightMotion implements Managed {
     @Override
     public void stop() throws Exception {
 
+    }
+
+    @Override
+    public void consumeEvent(LightMotionEvent event) {
+        log.info("Event happened "+event);
     }
 }
