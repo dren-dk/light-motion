@@ -142,6 +142,7 @@ Not releasded yet and I don't want to depend on a locally compiled artifact, so 
             <version>4.5.1</version>
         </dependency>
 
+
     </dependencies>
 	
   <build>

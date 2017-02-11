@@ -1,6 +1,6 @@
 package dk.dren.lightmotion.core.snapshot;
 
-import dk.dren.lightmotion.core.events.LightMotionEventConsumer;
+import lombok.extern.java.Log;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.junit.Test;
@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+@Log
 public class SnapshotProcessingManagerTest {
 
 
@@ -30,14 +31,13 @@ public class SnapshotProcessingManagerTest {
                     break;
                 }
                 if (!entry.isDirectory() && entry.getName().endsWith(".png")) {
+                    log.info("Processing "+entry.getName());
                     loggingEventConsumer.setPrefix(entry.getName()+" ");
                     byte[] data = IOUtils.toByteArray(zis);
                     spm.processSnapshot(data);
                 }
                 zis.closeEntry();
             }
-
-
         }
     }
 

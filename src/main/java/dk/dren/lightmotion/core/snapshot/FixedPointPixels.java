@@ -4,19 +4,23 @@ import lombok.Getter;
 import lombok.extern.java.Log;
 
 import javax.imageio.ImageIO;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.File;
 import java.io.IOException;
+
+import static java.awt.image.BufferedImage.TYPE_3BYTE_BGR;
+import static java.awt.image.BufferedImage.TYPE_INT_RGB;
 
 /**
  * An image consisting of fixed-point sub-pixels.
  *
  * This means that each sub-pixel is either red green or blue.
  *
- * each pixel is an integer.
+ * each sub-pixel is an integer scaled by 1<<16.
  *
- *
+ * The sub-pixel order is BGR
  */
 @Log
 @Getter
@@ -24,14 +28,22 @@ public class FixedPointPixels {
     private final int[] pixels;
     private final int width;
     private final int height;
-    private final int imageType;
 
     public FixedPointPixels(BufferedImage image) {
         width = image.getWidth();
         height = image.getHeight();
-        imageType = image.getType();
+
+        if (image.getType() != BufferedImage.TYPE_3BYTE_BGR) {
+            log.warning("Converting image type "+image.getType());
+            BufferedImage converted = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_3BYTE_BGR);
+            Graphics graphics = converted.getGraphics();
+            graphics.drawImage(image, 0, 0, null);
+            graphics.dispose();
+            image = converted;
+        }
+
         final byte[] inputPixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
-        pixels = new int[inputPixels.length];
+        pixels = new int[inputPixels.length]; // Note: 3 sub-pixels per input pixel
 
         long t0 = System.nanoTime();
         for (int i=0;i<inputPixels.length;i++) {
@@ -41,36 +53,83 @@ public class FixedPointPixels {
         log.fine("Converted "+pixels.length+" pixels in "+duration+" ns");
     }
 
-    public long diffBucketSum(FixedPointPixels other) {
+    public FixedPointPixels(int width, int height) {
+        this.width = width;
+        this.height = height;
+        this.pixels = new int[width*height*3];
+    }
 
+    /**
+     * This method iterates through the input pixels once and in that pass it does two things:
+     *
+     * * Add the new image to the current image via a moving average algorithm.
+     * * Generate a diff at low resolution (diffWidth*diffHeigh).
+     *  @param other The new image to add to the moving average and detect differences in
+     * @param decayOrder The order of decay to use for the moving average (4 means than 1/16 of the diff will be used to update the average)
+     * @param diffWidth Width of the diff image
+     * @param diffHeight Height of the diff image
+     */
+    public MotionDetectionResult motionDetect(FixedPointPixels other, int decayOrder, int diffWidth, int diffHeight) {
+        if (width % diffWidth != 0) {
+            throw new IllegalArgumentException("The diffWidth="+diffWidth+" must be a whole fraction of imageWidth="+width);
+        }
+        if (height % diffHeight != 0) {
+            throw new IllegalArgumentException("The diffHeight="+diffHeight+" must be a whole fraction of imageHeight="+height);
+        }
+
+        // Number of pixels per diff pixel
+        final int xpitch = width/diffWidth;
+        final int ypitch = height/diffHeight;
+
+        final FixedPointPixels diffImage = new FixedPointPixels(diffWidth, diffHeight);
         final int[] otherPixels = other.getPixels();
-        final int subWidth = width*3;
-        final int xbp = subWidth / 16;
+        final int[] diffPixels = diffImage.getPixels();
+        final int inputSubWidth = width * 3;
+        final int diffSubWidth = diffWidth * 3;
 
-        final int ybp = height / 16;
+        int firstOutputPixelInLine = 0;
+        int inputIndex = 0;
+        int ypixelsToGo = ypitch;
+        for (int inputY = 0 ; inputY<height ; inputY++) {
 
-        final long[] buckets = new long[256];
-        int xi = 0;
-        int yi = 0;
-        for (int i=0;i<pixels.length;i++) {
-            int xb = xi/xbp;
-            int yb = yi/ybp;
-            buckets[xb + (yb<<4)] += Math.abs(this.pixels[i]- otherPixels[i]) >> 16;
+            int outputPixel = firstOutputPixelInLine;
+            int xpixelsToGo = xpitch;
+            for (int inputX = 0; inputX< inputSubWidth; inputX++) {
+                int diff = otherPixels[inputIndex]-this.pixels[inputIndex];
 
-            if (++xi >= subWidth) {
-                yi++;
-                xi = 0;
+                diffPixels[outputPixel] += Math.abs(diff) >> 16;
+
+                this.pixels[inputIndex] += diff >> decayOrder;
+                inputIndex++;
+
+                if (--xpixelsToGo == 0) {
+                    xpixelsToGo = xpitch;
+                    outputPixel++;
+                }
+            }
+
+            if (--ypixelsToGo == 0) {
+                ypixelsToGo = ypitch;
+                firstOutputPixelInLine += diffSubWidth;
             }
         }
 
-        long result = 0;
-        for (long bs : buckets) {
-            if (bs > result) {
-                result = bs;
+        // Find the diff pixel with the greatest difference
+        int maxDiff = 0;
+        int maxDiffPixel = -1;
+        final int inputPixelsPerOutputPixel = xpitch * ypitch;
+        for (int diffPixel=0 ; diffPixel < diffPixels.length ; diffPixel++) {
+            int diff = diffPixels[diffPixel];
+            if (diff > maxDiff) {
+                maxDiff = diff;
+                maxDiffPixel = diffPixel;
             }
+
+            diffPixels[diffPixel] = (diff / inputPixelsPerOutputPixel) << 16;
         }
 
-        return result / (xbp*ybp);
+        int maxDiffFullPixel = maxDiffPixel/3;
+        return new MotionDetectionResult(diffImage, maxDiff/ inputPixelsPerOutputPixel, maxDiffFullPixel % diffWidth, maxDiffFullPixel / diffWidth);
     }
 
     public long diffSum(FixedPointPixels other) {
@@ -108,7 +167,7 @@ public class FixedPointPixels {
     }
 
     BufferedImage toBufferedImage() {
-        BufferedImage bi = new BufferedImage(width, height, imageType);
+        BufferedImage bi = new BufferedImage(width, height, TYPE_3BYTE_BGR);
         final byte[] outputPixels = ((DataBufferByte) bi.getRaster().getDataBuffer()).getData();
 
         for (int i=0;i<pixels.length;i++) {
