@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.IOException;
 
 import static java.awt.image.BufferedImage.TYPE_3BYTE_BGR;
+import static java.awt.image.BufferedImage.TYPE_BYTE_GRAY;
 import static java.awt.image.BufferedImage.TYPE_INT_RGB;
 
 /**
@@ -28,6 +29,7 @@ public class FixedPointPixels {
     private final int[] pixels;
     private final int width;
     private final int height;
+    private final boolean monochrome;
 
     public FixedPointPixels(BufferedImage image) {
         width = image.getWidth();
@@ -42,6 +44,8 @@ public class FixedPointPixels {
             image = converted;
         }
 
+        monochrome = false;
+
         final byte[] inputPixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
         pixels = new int[inputPixels.length]; // Note: 3 sub-pixels per input pixel
 
@@ -53,10 +57,11 @@ public class FixedPointPixels {
         log.fine("Converted "+pixels.length+" pixels in "+duration+" ns");
     }
 
-    public FixedPointPixels(int width, int height) {
+    public FixedPointPixels(int width, int height, boolean monochrome) {
+        this.monochrome = monochrome;
         this.width = width;
         this.height = height;
-        this.pixels = new int[width*height*3];
+        this.pixels = new int[monochrome ? width*height : width*height*3];
     }
 
     /**
@@ -78,14 +83,13 @@ public class FixedPointPixels {
         }
 
         // Number of pixels per diff pixel
-        final int xpitch = width/diffWidth;
+        final int xpitch = 3*width/diffWidth;
         final int ypitch = height/diffHeight;
 
-        final FixedPointPixels diffImage = new FixedPointPixels(diffWidth, diffHeight);
+        final FixedPointPixels diffImage = new FixedPointPixels(diffWidth, diffHeight, true);
         final int[] otherPixels = other.getPixels();
         final int[] diffPixels = diffImage.getPixels();
         final int inputSubWidth = width * 3;
-        final int diffSubWidth = diffWidth * 3;
 
         int firstOutputPixelInLine = 0;
         int inputIndex = 0;
@@ -110,7 +114,7 @@ public class FixedPointPixels {
 
             if (--ypixelsToGo == 0) {
                 ypixelsToGo = ypitch;
-                firstOutputPixelInLine += diffSubWidth;
+                firstOutputPixelInLine += diffWidth;
             }
         }
 
@@ -128,8 +132,7 @@ public class FixedPointPixels {
             diffPixels[diffPixel] = (diff / inputPixelsPerOutputPixel) << 16;
         }
 
-        int maxDiffFullPixel = maxDiffPixel/3;
-        return new MotionDetectionResult(diffImage, maxDiff/ inputPixelsPerOutputPixel, maxDiffFullPixel % diffWidth, maxDiffFullPixel / diffWidth);
+        return new MotionDetectionResult(diffImage, maxDiff/ inputPixelsPerOutputPixel, maxDiffPixel % diffWidth, maxDiffPixel / diffWidth);
     }
 
     public long diffSum(FixedPointPixels other) {
@@ -167,13 +170,13 @@ public class FixedPointPixels {
     }
 
     BufferedImage toBufferedImage() {
-        BufferedImage bi = new BufferedImage(width, height, TYPE_3BYTE_BGR);
+
+        BufferedImage bi = new BufferedImage(width, height, monochrome ? TYPE_BYTE_GRAY : TYPE_3BYTE_BGR);
         final byte[] outputPixels = ((DataBufferByte) bi.getRaster().getDataBuffer()).getData();
 
-        for (int i=0;i<pixels.length;i++) {
-            outputPixels[i] = (byte)(pixels[i] >> 16);
+        for (int i = 0; i < pixels.length; i++) {
+            outputPixels[i] = (byte) (pixels[i] >> 16);
         }
-
         return bi;
     }
 
@@ -184,5 +187,37 @@ public class FixedPointPixels {
 
     public static FixedPointPixels read(File file) throws IOException {
         return new FixedPointPixels(ImageIO.read(file));
+    }
+
+    public BufferedImage toBufferedImageWithGradient(int threshold) {
+
+        if (!monochrome) {
+            throw new IllegalArgumentException("Can only turn a monocrhome image into a gradient");
+        }
+
+        BufferedImage bi = new BufferedImage(width, height, TYPE_3BYTE_BGR);
+        final byte[] outputPixels = ((DataBufferByte) bi.getRaster().getDataBuffer()).getData();
+
+        int outputPixel = 0;
+        for (int i = 0; i < pixels.length; i++) {
+
+            int grey = pixels[i] >> 16;
+
+            int red = 0;
+            int green = 0;
+            int blue = 0;
+
+            if (grey < threshold) {
+                red = green = 255* grey / threshold;
+            } else {
+                red = 255;
+                green = blue = 255*(grey-threshold)/(255-threshold);
+            }
+
+            outputPixels[outputPixel++] = (byte) (blue);
+            outputPixels[outputPixel++] = (byte) (green);
+            outputPixels[outputPixel++] = (byte) (red);
+        }
+        return bi;
     }
 }

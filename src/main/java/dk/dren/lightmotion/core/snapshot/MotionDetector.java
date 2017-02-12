@@ -24,11 +24,13 @@ public class MotionDetector implements SnapshotProcessor {
     private final File averageFile;
     private final File debugDir;
     private static int debugCount = 0;
+    private int threshold;
 
     public MotionDetector(SnapshotProcessingManager manager) {
         this.manager = manager;
         averageFile = new File(manager.getWorkingDir(), "average.png");
         debugDir = System.getProperty("debug.dir", "").isEmpty() ? null : new File(System.getProperty("debug.dir"));
+        threshold = 10;
     }
 
     @Override
@@ -50,13 +52,13 @@ public class MotionDetector implements SnapshotProcessor {
 //            long diff = average.diffBucketUpdate(image, 4);
             MotionDetectionResult diff = average.motionDetect(image, 4, image.getWidth() / 16, image.getHeight() / 16);
             if (debugDir != null) {
-                storeDebug(debugDir, average, image, diff);
+                storeDebug(debugDir, average, image, diff, threshold);
             }
 
             long t1 = System.nanoTime();
             log.fine(manager.getCameraName()+": diff time: "+(t1-t0)+" diff="+diff);
 
-            if (diff.getMaxDiff() > 10)  {
+            if (diff.getMaxDiff() > threshold)  {
                 log.info("Detected motion at "+diff.getMaxDiffX()+","+diff.getMaxDiffY()+ " = "+diff.getMaxDiff());
                 quiet = false;
                 quietCount = 0;
@@ -78,12 +80,12 @@ public class MotionDetector implements SnapshotProcessor {
         return null;
     }
 
-    private static void storeDebug(File debugDir, FixedPointPixels average, FixedPointPixels image, MotionDetectionResult diff) {
+    private static void storeDebug(File debugDir, FixedPointPixels average, FixedPointPixels image, MotionDetectionResult diff, int threshold) {
         BufferedImage debug = new BufferedImage(average.getWidth()*2, average.getHeight()*2, BufferedImage.TYPE_3BYTE_BGR);
 
         BufferedImage ai = average.toBufferedImage();
         BufferedImage ii = image.toBufferedImage();
-        BufferedImage di = diff.getDiffImage().toBufferedImage();
+        BufferedImage di = diff.getDiffImage().toBufferedImageWithGradient(threshold);
 
         Graphics graphics = debug.getGraphics();
         graphics.drawImage(ai, 0,               0,                average.getWidth(), average.getHeight(), null);
