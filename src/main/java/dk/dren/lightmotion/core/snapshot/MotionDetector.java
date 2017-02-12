@@ -1,5 +1,6 @@
 package dk.dren.lightmotion.core.snapshot;
 
+import dk.dren.lightmotion.core.CameraManager;
 import dk.dren.lightmotion.core.events.LightMotionEvent;
 import dk.dren.lightmotion.core.events.LightMotionEventType;
 import lombok.extern.java.Log;
@@ -17,13 +18,13 @@ import java.util.logging.Level;
 @Log
 public class MotionDetector implements SnapshotProcessor {
     private static int y0;
+    private static int debugImageCount =0;
     final private SnapshotProcessingManager manager;
     private FixedPointPixels average;
     int quietCount = 0;
     private boolean quiet = true;
     private final File averageFile;
     private final File debugDir;
-    private static int debugCount = 0;
     private int threshold;
 
     public MotionDetector(SnapshotProcessingManager manager) {
@@ -93,24 +94,36 @@ public class MotionDetector implements SnapshotProcessor {
         graphics.drawImage(di, 0,               average.getHeight(), average.getWidth(), average.getHeight(), null);
         graphics.drawImage(ii, average.getWidth(), average.getHeight(),  average.getWidth(), average.getHeight(), null);
         if (diff.getMaxDiff() >= 0) {
-            graphics.setColor(new Color(0xff, 0xff, 0x00));
             int xscale = average.getWidth() / diff.getDiffImage().getWidth();
             int yscale = average.getHeight() / diff.getDiffImage().getHeight();
             int x0 = average.getWidth() + xscale * diff.getMaxDiffX();
             int y0 = average.getHeight() + yscale * diff.getMaxDiffY();
-            graphics.drawLine(x0, y0, x0+xscale, y0+yscale);
-            graphics.drawLine(x0+xscale, y0, x0, y0+yscale);
+            graphics.setColor(new Color(0xff, 0x00, 0x00));
+            graphics.drawLine(x0, y0, x0+xscale-1, y0+yscale-1);
+            graphics.drawLine(x0+xscale-1, y0, x0, y0+yscale-1);
+
+            graphics.setColor(new Color(0x00, 0xff, 0x00));
+            graphics.drawLine(x0, y0, x0+xscale-1, y0);
+            graphics.drawLine(x0+xscale-1, y0+yscale-1, x0+xscale-1, y0);
+            graphics.drawLine(x0+xscale-1, y0+yscale-1, x0, y0+yscale-1);
+            graphics.drawLine(x0, y0, x0, y0+yscale-1);
         }
 
         graphics.dispose();
 
-
-
-        File debugFile = new File(debugDir, "debug-"+ debugCount++ +".png");
+        File debugFile = new File(debugDir, "debug-" + debugOutputName() + ".png");
         try {
             ImageIO.write(debug, "png", debugFile);
         } catch (IOException e) {
             throw new RuntimeException("Fail!");
         }
+    }
+
+    private static String debugOutputName() {
+        String countString = Integer.toHexString(debugImageCount++);
+        while (countString.length() < 4) {
+            countString = "0"+countString;
+        }
+        return CameraManager.getTimeStamp() + "-" + countString;
     }
 }

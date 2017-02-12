@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.logging.Level;
 
 /**
- *
+ * Manages snapshots from a single camera
  */
 @Log
 public class SnapshotProcessingManager {
