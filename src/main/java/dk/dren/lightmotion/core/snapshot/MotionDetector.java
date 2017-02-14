@@ -1,6 +1,5 @@
 package dk.dren.lightmotion.core.snapshot;
 
-import dk.dren.lightmotion.core.CameraManager;
 import dk.dren.lightmotion.core.events.LightMotionEvent;
 import dk.dren.lightmotion.core.events.LightMotionEventType;
 import lombok.extern.java.Log;
@@ -17,21 +16,60 @@ import java.util.logging.Level;
  */
 @Log
 public class MotionDetector implements SnapshotProcessor {
-    private static int y0;
-    private static int debugImageCount =0;
-    final private SnapshotProcessingManager manager;
-    private FixedPointPixels average;
-    int quietCount = 0;
-    private boolean quiet = true;
+    private final SnapshotProcessingManager manager;
     private final File averageFile;
     private final File debugDir;
-    private int threshold;
+    private final File maskFile;
+    private final int threshold;
+
+    private FixedPointPixels average;
+    private boolean quiet = true;
+    int quietCount = 0;
+    BitPixels currentMask;
 
     public MotionDetector(SnapshotProcessingManager manager) {
         this.manager = manager;
         averageFile = new File(manager.getWorkingDir(), "average.png");
         debugDir = System.getProperty("debug.dir", "").isEmpty() ? null : new File(System.getProperty("debug.dir"));
+        maskFile = new File(manager.getWorkingDir(), "movement-mask.png");
+
         threshold = 10;
+    }
+
+    private BitPixels loadCompatibleMask(FixedPointPixels snapshot) {
+        if (currentMask != null && currentMask.isSameSizeAs(snapshot)) {
+            return currentMask;
+        }
+
+        if (!maskFile.isFile()) {
+            return null;
+        }
+
+        BufferedImage raw = null;
+        try {
+            raw = ImageIO.read(maskFile);
+        } catch (IOException e) {
+            log.log(Level.SEVERE, "Failed to load mask for "+manager.getCameraName()+" from "+maskFile, e);
+        }
+
+        BufferedImage bi = new BufferedImage(snapshot.getWidth(), snapshot.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
+        Graphics g = bi.getGraphics();
+        g.drawImage(raw, 0,0,
+                bi.getWidth(), bi.getHeight(),
+                new Color(0xff, 0xff, 0xff), null);
+        g.dispose();
+
+        currentMask = new BitPixels(bi);
+
+
+        BufferedImage cb = currentMask.toBufferedImage();
+        try {
+            ImageIO.write(cb, "png", new File(maskFile.getParent(),"movement-mask-loaded.png"));
+        } catch (IOException e) {
+            log.log(Level.SEVERE, "Fail", e);
+        }
+
+        return currentMask;
     }
 
     @Override
@@ -40,24 +78,25 @@ public class MotionDetector implements SnapshotProcessor {
         int imagePixelCount = image.getWidth() * image.getHeight();
         log.fine("Got image: "+image.getWidth()+"x"+image.getHeight()+" pixels: "+imagePixelCount+" sub-pixels: "+image.getPixels().length);
 
-        if (average == null)  {
-            average = image;
-
-        } else if (average.getPixels().length != image.getPixels().length){
-            // Note: I don't know if this is a reasonable thing to happen, if it is then this code should learn how to handle it rather than throw an exception
-            throw new RuntimeException("The number of pixels of the new image "+image.getPixels().length+" is different from the previously seen "+average.getPixels().length);
+        if (average == null || average.getPixels().length != image.getPixels().length)  {
+            average = image.clone(manager.getCameraName()+"-average");
 
         } else {
 
             long t0 = System.nanoTime();
 //            long diff = average.diffBucketUpdate(image, 4);
-            MotionDetectionResult diff = average.motionDetect(image, 4, image.getWidth() / 16, image.getHeight() / 16);
+            BitPixels mask = loadCompatibleMask(image);
+            MotionDetectionResult diff = average.motionDetect(image, mask, 4, image.getWidth() / 16, image.getHeight() / 16);
+            long t1 = System.nanoTime();
+            log.fine(manager.getCameraName()+": diff time: "+(t1-t0)+" diff="+diff);
             if (debugDir != null) {
                 storeDebug(debugDir, average, image, diff, threshold);
             }
-
-            long t1 = System.nanoTime();
-            log.fine(manager.getCameraName()+": diff time: "+(t1-t0)+" diff="+diff);
+            try {
+                average.write(averageFile);
+            } catch (Exception e) {
+                log.log(Level.SEVERE, "Failed to write average to "+averageFile, e);
+            }
 
             if (diff.getMaxDiff() > threshold)  {
                 log.info("Detected motion at "+diff.getMaxDiffX()+","+diff.getMaxDiffY()+ " = "+diff.getMaxDiff());
@@ -71,11 +110,6 @@ public class MotionDetector implements SnapshotProcessor {
                 }
             }
 
-            try {
-                average.write(averageFile);
-            } catch (Exception e) {
-                log.log(Level.SEVERE, "Failed to write average to "+averageFile, e);
-            }
         }
 
         return null;
@@ -111,19 +145,11 @@ public class MotionDetector implements SnapshotProcessor {
 
         graphics.dispose();
 
-        File debugFile = new File(debugDir, "debug-" + debugOutputName() + ".png");
+        File debugFile = new File(debugDir, "debug-" + image.getName() + ".png");
         try {
             ImageIO.write(debug, "png", debugFile);
         } catch (IOException e) {
             throw new RuntimeException("Fail!");
         }
-    }
-
-    private static String debugOutputName() {
-        String countString = Integer.toHexString(debugImageCount++);
-        while (countString.length() < 4) {
-            countString = "0"+countString;
-        }
-        return CameraManager.getTimeStamp() + "-" + countString;
     }
 }

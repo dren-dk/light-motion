@@ -12,7 +12,6 @@ import java.io.IOException;
 
 import static java.awt.image.BufferedImage.TYPE_3BYTE_BGR;
 import static java.awt.image.BufferedImage.TYPE_BYTE_GRAY;
-import static java.awt.image.BufferedImage.TYPE_INT_RGB;
 
 /**
  * An image consisting of fixed-point sub-pixels.
@@ -30,8 +29,10 @@ public class FixedPointPixels {
     private final int width;
     private final int height;
     private final boolean monochrome;
+    private final String name;
 
-    public FixedPointPixels(BufferedImage image) {
+    public FixedPointPixels(String name, BufferedImage image) {
+        this.name = name;
         width = image.getWidth();
         height = image.getHeight();
 
@@ -57,11 +58,20 @@ public class FixedPointPixels {
         log.fine("Converted "+pixels.length+" pixels in "+duration+" ns");
     }
 
-    public FixedPointPixels(int width, int height, boolean monochrome) {
+    public FixedPointPixels(String name, int width, int height, boolean monochrome) {
+        this.name = name;
         this.monochrome = monochrome;
         this.width = width;
         this.height = height;
         this.pixels = new int[monochrome ? width*height : width*height*3];
+    }
+
+    public FixedPointPixels(String name, FixedPointPixels original) {
+        this.name = name;
+        this.pixels = original.getPixels().clone();
+        this.width = original.width;
+        this.height = original.height;
+        this.monochrome = original.monochrome;
     }
 
     /**
@@ -69,12 +79,13 @@ public class FixedPointPixels {
      *
      * * Add the new image to the current image via a moving average algorithm.
      * * Generate a diff at low resolution (diffWidth*diffHeigh).
-     *  @param other The new image to add to the moving average and detect differences in
+     * @param other The new image to add to the moving average and detect differences in
+     * @param mask
      * @param decayOrder The order of decay to use for the moving average (4 means than 1/16 of the diff will be used to update the average)
      * @param diffWidth Width of the diff image
      * @param diffHeight Height of the diff image
      */
-    public MotionDetectionResult motionDetect(FixedPointPixels other, int decayOrder, int diffWidth, int diffHeight) {
+    public MotionDetectionResult motionDetect(FixedPointPixels other, BitPixels mask, int decayOrder, int diffWidth, int diffHeight) {
         if (width % diffWidth != 0) {
             throw new IllegalArgumentException("The diffWidth="+diffWidth+" must be a whole fraction of imageWidth="+width);
         }
@@ -86,24 +97,35 @@ public class FixedPointPixels {
         final int xpitch = 3*width/diffWidth;
         final int ypitch = height/diffHeight;
 
-        final FixedPointPixels diffImage = new FixedPointPixels(diffWidth, diffHeight, true);
+        final FixedPointPixels diffImage = new FixedPointPixels(other.getName()+"-diff", diffWidth, diffHeight, true);
         final int[] otherPixels = other.getPixels();
         final int[] diffPixels = diffImage.getPixels();
         final int inputSubWidth = width * 3;
 
         int firstOutputPixelInLine = 0;
         int inputIndex = 0;
+        int maskPixel = 0;
         int ypixelsToGo = ypitch;
         for (int inputY = 0 ; inputY<height ; inputY++) {
 
             int outputPixel = firstOutputPixelInLine;
             int xpixelsToGo = xpitch;
+            int maskPixelToGo = 3;
             for (int inputX = 0; inputX< inputSubWidth; inputX++) {
                 int diff = otherPixels[inputIndex]-this.pixels[inputIndex];
 
-                diffPixels[outputPixel] += Math.abs(diff) >> 16;
+                if (mask == null || !mask.isBlack(maskPixel)) {
+                    diffPixels[outputPixel] += Math.abs(diff) >> 16;
+                } else {
+                    diffPixels[outputPixel] = 255;
+                }
+                if (--maskPixelToGo == 0) {
+                    maskPixel++;
+                    maskPixelToGo = 3;
+                }
 
                 this.pixels[inputIndex] += diff >> decayOrder;
+
                 inputIndex++;
 
                 if (--xpixelsToGo == 0) {
@@ -186,7 +208,7 @@ public class FixedPointPixels {
     }
 
     public static FixedPointPixels read(File file) throws IOException {
-        return new FixedPointPixels(ImageIO.read(file));
+        return new FixedPointPixels(file.getName(), ImageIO.read(file));
     }
 
     public BufferedImage toBufferedImageWithGradient(int threshold) {
@@ -219,5 +241,9 @@ public class FixedPointPixels {
             outputPixels[outputPixel++] = (byte) (red);
         }
         return bi;
+    }
+
+    public FixedPointPixels clone(String name) {
+        return new FixedPointPixels(name, this);
     }
 }

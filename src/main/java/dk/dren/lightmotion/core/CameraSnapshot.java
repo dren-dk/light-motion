@@ -14,10 +14,22 @@ import java.io.IOException;
 @RequiredArgsConstructor
 @Getter
 public class CameraSnapshot {
+    /**
+     * The processing manager that needs to handle this snapshot
+     */
     private final SnapshotProcessingManager snapshotProcessingManager;
+
+    /**
+     * The name of the snapshot, should be globally unique, as it's nice to have for debugging and user freedback
+     */
+    private final String name;
+
+    /**
+     * The actual bytes of the image
+     */
     private final byte[] imageBytes;
 
     public void processSnapshot() throws IOException {
-        snapshotProcessingManager.processSnapshot(imageBytes);
+        snapshotProcessingManager.processSnapshot(name, imageBytes);
     }
 }

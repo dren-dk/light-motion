@@ -128,7 +128,7 @@ public class CameraManager {
     }
 
     public File camDir() {
-        return new File(lightMotion.getConfig().getWorkingRoot(), "cam/"+cameraConfig.getAddress());
+        return new File(lightMotion.getConfig().getWorkingRoot(), "cam/"+cameraConfig.getName());
     }
 
     public File workingDir() {
@@ -241,8 +241,10 @@ public class CameraManager {
                             imageBytes = IOUtils.toByteArray(content);
                         }
 
+                        String imageName = cameraConfig.getName()+"-"+getTimeStamp();
+
                         // This might block while waiting for room in the queue, so we do this after closing the http response
-                        lightMotion.getSnapshots().add(new CameraSnapshot(snapshotProcessingManager, imageBytes));
+                        lightMotion.getSnapshots().add(new CameraSnapshot(snapshotProcessingManager, imageName, imageBytes));
                     }
 
                 } catch (Exception e) {

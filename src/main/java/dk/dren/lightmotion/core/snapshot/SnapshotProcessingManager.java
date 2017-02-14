@@ -55,13 +55,13 @@ public class SnapshotProcessingManager {
         this(cm.getCameraConfig().getName(), cm.workingDir(), cm.getCameraConfig().getStoreSnapshots(), cm.getLightMotion());
     }
 
-    public void processSnapshot(byte[] imageBytes) throws IOException {
+    public void processSnapshot(String name, byte[] imageBytes) throws IOException {
         final BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
-        final FixedPointPixels fixed = new FixedPointPixels(image);
-
         if (storeSnapshots) {
-            fixed.write(new File(snapshotsDir, CameraManager.getTimeStamp() + ".png"));
+            ImageIO.write(image, "png", new File(snapshotsDir, name + ".png"));
         }
+
+        final FixedPointPixels fixed = new FixedPointPixels(name, image);
 
         for (SnapshotProcessor processor : processors) {
             try {

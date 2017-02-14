@@ -142,7 +142,11 @@ Not releasded yet and I don't want to depend on a locally compiled artifact, so 
             <version>4.5.1</version>
         </dependency>
 
-
+        <dependency>
+            <groupId>org.roaringbitmap</groupId>
+            <artifactId>RoaringBitmap</artifactId>
+            <version>[0.6,)</version>
+        </dependency>
     </dependencies>
 	
   <build>

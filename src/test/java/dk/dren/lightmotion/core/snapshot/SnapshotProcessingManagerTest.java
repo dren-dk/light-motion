@@ -5,8 +5,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.junit.Test;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -22,8 +21,16 @@ public class SnapshotProcessingManagerTest {
         File workingDir = File.createTempFile("test", ".dir");
         FileUtils.forceDelete(workingDir);
         FileUtils.forceMkdir(workingDir);
+        try (InputStream is = SnapshotProcessingManager.class.getResourceAsStream("/clock-mask.png");
+             OutputStream os = new FileOutputStream(new File(workingDir,"movement-mask.png"))) {
+            IOUtils.copy(is, os);
+        }
+
         SnapshotProcessingManager spm = new SnapshotProcessingManager("test", workingDir, false, loggingEventConsumer);
-        try (ZipInputStream zis = new ZipInputStream(SnapshotProcessingManager.class.getResourceAsStream("/car-leaving.zip"))) {
+
+        String zipName = "cam3-day";
+
+        try (ZipInputStream zis = new ZipInputStream(SnapshotProcessingManager.class.getResourceAsStream("/"+zipName+".zip"))) {
 
             while (true) {
                 ZipEntry entry = zis.getNextEntry();
@@ -32,9 +39,10 @@ public class SnapshotProcessingManagerTest {
                 }
                 if (!entry.isDirectory() && entry.getName().endsWith(".png")) {
                     log.info("Processing "+entry.getName());
-                    loggingEventConsumer.setPrefix(entry.getName()+" ");
+                    String name = zipName + "-" + entry.getName().substring(0, entry.getName().length() - ".png".length());
+                    loggingEventConsumer.setPrefix(name+" ");
                     byte[] data = IOUtils.toByteArray(zis);
-                    spm.processSnapshot(data);
+                    spm.processSnapshot(name, data);
                 }
                 zis.closeEntry();
             }
