@@ -23,6 +23,7 @@ public class MotionDetector implements SnapshotProcessor {
     private final int threshold;
 
     private FixedPointPixels average;
+    private FixedPointPixels noise;
     private boolean quiet = true;
     int quietCount = 0;
     BitPixels currentMask;
@@ -72,37 +73,122 @@ public class MotionDetector implements SnapshotProcessor {
         return currentMask;
     }
 
+    /**
+     * This method iterates through the input pixels once and in that pass it does two things:
+     *
+     * * Add the new image to the current image via a moving average algorithm.
+     * * Generate a diff at low resolution (diffWidth*diffHeigh).
+     * @param other The new image to add to the moving average and detect differences in
+     * @param mask
+     * @param decayOrder The order of decay to use for the moving average (4 means than 1/16 of the diff will be used to update the average)
+     * @param diffWidth Width of the diff image
+     * @param diffHeight Height of the diff image
+     */
+    private static FixedPointPixels motionDetect(FixedPointPixels average, FixedPointPixels other, BitPixels mask, int decayOrder, int diffWidth, int diffHeight) {
+        if (average.getWidth() % diffWidth != 0) {
+            throw new IllegalArgumentException("The diffWidth="+diffWidth+" must be a whole fraction of imageWidth="+average.getWidth());
+        }
+        if (average.getHeight() % diffHeight != 0) {
+            throw new IllegalArgumentException("The diffHeight="+diffHeight+" must be a whole fraction of imageHeight="+average.getName());
+        }
+
+        // Number of pixels per diff pixel
+        final int xpitch = 3*average.getWidth()/diffWidth;
+        final int ypitch = average.getHeight()/diffHeight;
+
+        final FixedPointPixels diffImage = new FixedPointPixels(other.getName()+"-diff", diffWidth, diffHeight, true);
+        final int[] otherPixels = other.getPixels();
+        final int[] diffPixels = diffImage.getPixels();
+        final int inputSubWidth = average.getWidth() * 3;
+
+        int firstOutputPixelInLine = 0;
+        int inputIndex = 0;
+        int maskPixel = 0;
+        int ypixelsToGo = ypitch;
+        int[] averagePixels = average.getPixels();
+        for (int inputY = 0 ; inputY<average.getHeight() ; inputY++) {
+
+            int outputPixel = firstOutputPixelInLine;
+            int xpixelsToGo = xpitch;
+            int maskPixelToGo = 3;
+            for (int inputX = 0; inputX< inputSubWidth; inputX++) {
+                int diff = otherPixels[inputIndex]-averagePixels[inputIndex];
+
+                if (mask == null || !mask.isBlack(maskPixel)) {
+                    diffPixels[outputPixel] += Math.abs(diff) >> 16;
+                }
+                if (--maskPixelToGo == 0) {
+                    maskPixel++;
+                    maskPixelToGo = 3;
+                }
+
+                averagePixels[inputIndex] += diff >> decayOrder;
+
+                inputIndex++;
+
+                if (--xpixelsToGo == 0) {
+                    xpixelsToGo = xpitch;
+                    outputPixel++;
+                }
+            }
+
+            if (--ypixelsToGo == 0) {
+                ypixelsToGo = ypitch;
+                firstOutputPixelInLine += diffWidth;
+            }
+        }
+
+        // Scale the diff pixels so we have a comparable scale
+        final int inputPixelsPerOutputPixel = xpitch * ypitch;
+        for (int diffPixel=0 ; diffPixel < diffPixels.length ; diffPixel++) {
+            diffPixels[diffPixel] = (diffPixels[diffPixel] / inputPixelsPerOutputPixel) << 16;
+        }
+
+        return diffImage;
+    }
+
+
     @Override
     public LightMotionEvent process(FixedPointPixels image) {
+        FixedPointPixels blocky = image.scale(8);
 
-        int imagePixelCount = image.getWidth() * image.getHeight();
-        log.fine("Got image: "+image.getWidth()+"x"+image.getHeight()+" pixels: "+imagePixelCount+" sub-pixels: "+image.getPixels().length);
+        int imagePixelCount = blocky.getWidth() * blocky.getHeight();
+        log.fine("Got image: "+blocky.getWidth()+"x"+blocky.getHeight()+" pixels: "+imagePixelCount+" sub-pixels: "+blocky.getPixels().length);
 
-        if (average == null || average.getPixels().length != image.getPixels().length)  {
-            average = image.clone(manager.getCameraName()+"-average");
+        if (average == null || average.getPixels().length != blocky.getPixels().length)  {
+            average = blocky.clone(manager.getCameraName()+"-average");
 
         } else {
 
             long t0 = System.nanoTime();
 //            long diff = average.diffBucketUpdate(image, 4);
-            BitPixels mask = loadCompatibleMask(image);
-            MotionDetectionResult diff = average.motionDetect(image, mask, 4, image.getWidth() / 16, image.getHeight() / 16);
+            BitPixels mask = loadCompatibleMask(blocky);
+            FixedPointPixels diff = motionDetect(average, blocky, mask, 4, blocky.getWidth()/2, blocky.getHeight()/2);
             long t1 = System.nanoTime();
-            log.fine(manager.getCameraName()+": diff time: "+(t1-t0)+" diff="+diff);
-            if (debugDir != null) {
-                storeDebug(debugDir, average, image, diff, threshold);
+            if (noise == null) {
+                noise = diff.clone(manager.getCameraName()+"-noise");
             }
+            updateAverageAndSubtract(noise, diff, 4);
+
+
+            log.fine(manager.getCameraName()+": diff time: "+(t1-t0));
+            // TODO: Don't store the state file for every frame and remember to load it when starting too
             try {
                 average.write(averageFile);
             } catch (Exception e) {
                 log.log(Level.SEVERE, "Failed to write average to "+averageFile, e);
             }
 
-            if (diff.getMaxDiff() > threshold)  {
-                log.info("Detected motion at "+diff.getMaxDiffX()+","+diff.getMaxDiffY()+ " = "+diff.getMaxDiff());
+            MotionDetectionResult detected = analyzeDiff(diff, threshold);
+            if (debugDir != null) {
+                storeDebug(debugDir, average, image, diff, noise, detected);
+            }
+
+            if (detected.isMovementDetected())  {
+                log.info("Detected motion at "+detected.getMaxDiffX()+","+detected.getMaxDiffY()+ " = "+detected.getMaxDiff());
                 quiet = false;
                 quietCount = 0;
-                return new LightMotionEvent(LightMotionEventType.MOTION, manager.getCameraName(), "Detected motion ("+diff.getMaxDiff()+")");
+                return new LightMotionEvent(LightMotionEventType.MOTION, manager.getCameraName(), "Detected motion ("+detected.getMaxDiff()+")");
             } else {
                 if (!quiet && quietCount++ > 10) {
                     quiet = true;
@@ -115,28 +201,127 @@ public class MotionDetector implements SnapshotProcessor {
         return null;
     }
 
-    private static void storeDebug(File debugDir, FixedPointPixels average, FixedPointPixels image, MotionDetectionResult diff, int threshold) {
-        BufferedImage debug = new BufferedImage(average.getWidth()*2, average.getHeight()*2, BufferedImage.TYPE_3BYTE_BGR);
+    private void updateAverageAndSubtract(FixedPointPixels noise, FixedPointPixels diff, final int decay) {
+        int[] noisePixels = noise.getPixels();
+        int[] diffPixels = diff.getPixels();
+
+        for (int i=0;i<noisePixels.length;i++) {
+            int diffPixel = diffPixels[i];
+            int noisePixel = noisePixels[i];
+            int adjustment = diffPixel - noisePixel >> decay;
+            noisePixel += adjustment;
+
+            if (noisePixel > diffPixel) {
+                diffPixels[i] = 0;
+            } else {
+                diffPixels[i] = diffPixel - noisePixel;
+            }
+        }
+    }
+
+    private void updateAverageAndSubtractBlurred(FixedPointPixels noise, FixedPointPixels diff, final int decay) {
+        int[] noisePixels = noise.getPixels();
+        int[] diffPixels = diff.getPixels();
+
+        int w = noise.getWidth();
+        int h = noise.getHeight();
+        int lastPixelOnLine = w - 1;
+
+        int pixel = 0;
+        for (int y=0;y<noise.getHeight();y++) {
+            for (int x=0;x<noise.getWidth();x++) {
+                int diffPixel = diffPixels[pixel];
+                int noisePixel = noisePixels[pixel];
+                if (noisePixel < 0) {
+                    noisePixel = 0;
+                }
+                int adjustment = (diffPixel - noisePixel) >> decay;
+                noisePixel += adjustment;
+                noisePixels[pixel] = noisePixel;
+                if (noisePixel > diffPixel) {
+                    diffPixels[pixel] = 0;
+                } else {
+                    diffPixels[pixel] = diffPixel - noisePixel;
+                }
+
+                int blurAdjustment = adjustment >> 2;
+                if (blurAdjustment > 0) {
+                    int cornerBlurAdjustment = blurAdjustment >> 1;
+                    if (y != 0) {
+                        if (x != 0) {
+                            noisePixels[pixel - w - 1] += cornerBlurAdjustment;
+                        }
+                        noisePixels[pixel - w] += blurAdjustment;
+                        if (x < lastPixelOnLine) {
+                            noisePixels[pixel - w + 1] += cornerBlurAdjustment;
+                        }
+                    }
+
+                    if (x != 0) {
+                        noisePixels[pixel - 1] += blurAdjustment;
+                    }
+                    if (x < lastPixelOnLine) {
+                        noisePixels[pixel + 1] += blurAdjustment;
+                    }
+
+                    if (y < h - 1) {
+                        if (x != 0) {
+                            noisePixels[pixel + w - 1] += cornerBlurAdjustment;
+                        }
+                        noisePixels[pixel + w] += blurAdjustment;
+                        if (x < lastPixelOnLine) {
+                            noisePixels[pixel + w + 1] += cornerBlurAdjustment;
+                        }
+                    }
+                }
+
+                pixel++;
+            }
+        }
+    }
+
+    private MotionDetectionResult analyzeDiff(FixedPointPixels diffImage, int threshold) {
+        int[] diffPixels = diffImage.getPixels();
+        // Find the diff pixel with the greatest difference
+        int maxDiff = 0;
+        int maxDiffPixel = -1;
+        for (int diffPixel=0 ; diffPixel < diffPixels.length ; diffPixel++) {
+            int diff = diffPixels[diffPixel];
+            if (diff > maxDiff) {
+                maxDiff = diff;
+                maxDiffPixel = diffPixel;
+            }
+        }
+
+        maxDiff >>= 16;
+
+        return new MotionDetectionResult(maxDiff>=threshold, maxDiff, maxDiffPixel % diffImage.getWidth(), maxDiffPixel / diffImage.getWidth(), threshold);
+    }
+
+    private static void storeDebug(File debugDir, FixedPointPixels average, FixedPointPixels image, FixedPointPixels diffImage, FixedPointPixels noise, MotionDetectionResult diff) {
+        BufferedImage debug = new BufferedImage(image.getWidth()*2, image.getHeight()*2, BufferedImage.TYPE_3BYTE_BGR);
 
         BufferedImage ai = average.toBufferedImage();
         BufferedImage ii = image.toBufferedImage();
-        BufferedImage di = diff.getDiffImage().toBufferedImageWithGradient(threshold);
+        BufferedImage di = diffImage.toBufferedImageWithGradient(diff.getThreshold());
+        BufferedImage ni = noise.toBufferedImageWithGradient(diff.getThreshold());
 
         Graphics graphics = debug.getGraphics();
-        graphics.drawImage(ai, 0,               0,                average.getWidth(), average.getHeight(), null);
-        graphics.drawImage(ii, average.getWidth(), 0,                average.getWidth(), average.getHeight(), null);
-        graphics.drawImage(di, 0,               average.getHeight(), average.getWidth(), average.getHeight(), null);
-        graphics.drawImage(ii, average.getWidth(), average.getHeight(),  average.getWidth(), average.getHeight(), null);
-        if (diff.getMaxDiff() >= 0) {
-            int xscale = average.getWidth() / diff.getDiffImage().getWidth();
-            int yscale = average.getHeight() / diff.getDiffImage().getHeight();
-            int x0 = average.getWidth() + xscale * diff.getMaxDiffX();
-            int y0 = average.getHeight() + yscale * diff.getMaxDiffY();
+        graphics.drawImage(ai, 0,               0,             image.getWidth(), image.getHeight(), null);
+        graphics.drawImage(ii, image.getWidth(), 0,                image.getWidth(), image.getHeight(), null);
+        graphics.drawImage(di, 0,               image.getHeight(), image.getWidth(), image.getHeight(), null);
+        graphics.drawImage(ni, image.getWidth(), image.getHeight(),  image.getWidth(), image.getHeight(), null);
+        if (diff.isMovementDetected()) {
+            int xscale = image.getWidth() / diffImage.getWidth();
+            int yscale = image.getHeight() / diffImage.getHeight();
+            int x0 = image.getWidth() + xscale * diff.getMaxDiffX();
+            int y0 = yscale * diff.getMaxDiffY();
+
             graphics.setColor(new Color(0xff, 0x00, 0x00));
             graphics.drawLine(x0, y0, x0+xscale-1, y0+yscale-1);
             graphics.drawLine(x0+xscale-1, y0, x0, y0+yscale-1);
 
-            graphics.setColor(new Color(0x00, 0xff, 0x00));
+            graphics.setColor(new Color(0xff, 0x90, 0x00));
             graphics.drawLine(x0, y0, x0+xscale-1, y0);
             graphics.drawLine(x0+xscale-1, y0+yscale-1, x0+xscale-1, y0);
             graphics.drawLine(x0+xscale-1, y0+yscale-1, x0, y0+yscale-1);

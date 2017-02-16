@@ -74,89 +74,6 @@ public class FixedPointPixels {
         this.monochrome = original.monochrome;
     }
 
-    /**
-     * This method iterates through the input pixels once and in that pass it does two things:
-     *
-     * * Add the new image to the current image via a moving average algorithm.
-     * * Generate a diff at low resolution (diffWidth*diffHeigh).
-     * @param other The new image to add to the moving average and detect differences in
-     * @param mask
-     * @param decayOrder The order of decay to use for the moving average (4 means than 1/16 of the diff will be used to update the average)
-     * @param diffWidth Width of the diff image
-     * @param diffHeight Height of the diff image
-     */
-    public MotionDetectionResult motionDetect(FixedPointPixels other, BitPixels mask, int decayOrder, int diffWidth, int diffHeight) {
-        if (width % diffWidth != 0) {
-            throw new IllegalArgumentException("The diffWidth="+diffWidth+" must be a whole fraction of imageWidth="+width);
-        }
-        if (height % diffHeight != 0) {
-            throw new IllegalArgumentException("The diffHeight="+diffHeight+" must be a whole fraction of imageHeight="+height);
-        }
-
-        // Number of pixels per diff pixel
-        final int xpitch = 3*width/diffWidth;
-        final int ypitch = height/diffHeight;
-
-        final FixedPointPixels diffImage = new FixedPointPixels(other.getName()+"-diff", diffWidth, diffHeight, true);
-        final int[] otherPixels = other.getPixels();
-        final int[] diffPixels = diffImage.getPixels();
-        final int inputSubWidth = width * 3;
-
-        int firstOutputPixelInLine = 0;
-        int inputIndex = 0;
-        int maskPixel = 0;
-        int ypixelsToGo = ypitch;
-        for (int inputY = 0 ; inputY<height ; inputY++) {
-
-            int outputPixel = firstOutputPixelInLine;
-            int xpixelsToGo = xpitch;
-            int maskPixelToGo = 3;
-            for (int inputX = 0; inputX< inputSubWidth; inputX++) {
-                int diff = otherPixels[inputIndex]-this.pixels[inputIndex];
-
-                if (mask == null || !mask.isBlack(maskPixel)) {
-                    diffPixels[outputPixel] += Math.abs(diff) >> 16;
-                } else {
-                    diffPixels[outputPixel] = 255;
-                }
-                if (--maskPixelToGo == 0) {
-                    maskPixel++;
-                    maskPixelToGo = 3;
-                }
-
-                this.pixels[inputIndex] += diff >> decayOrder;
-
-                inputIndex++;
-
-                if (--xpixelsToGo == 0) {
-                    xpixelsToGo = xpitch;
-                    outputPixel++;
-                }
-            }
-
-            if (--ypixelsToGo == 0) {
-                ypixelsToGo = ypitch;
-                firstOutputPixelInLine += diffWidth;
-            }
-        }
-
-        // Find the diff pixel with the greatest difference
-        int maxDiff = 0;
-        int maxDiffPixel = -1;
-        final int inputPixelsPerOutputPixel = xpitch * ypitch;
-        for (int diffPixel=0 ; diffPixel < diffPixels.length ; diffPixel++) {
-            int diff = diffPixels[diffPixel];
-            if (diff > maxDiff) {
-                maxDiff = diff;
-                maxDiffPixel = diffPixel;
-            }
-
-            diffPixels[diffPixel] = (diff / inputPixelsPerOutputPixel) << 16;
-        }
-
-        return new MotionDetectionResult(diffImage, maxDiff/ inputPixelsPerOutputPixel, maxDiffPixel % diffWidth, maxDiffPixel / diffWidth);
-    }
-
     public long diffSum(FixedPointPixels other) {
 
         int[] otherPixels = other.getPixels();
@@ -235,7 +152,6 @@ public class FixedPointPixels {
                 red = 255;
                 green = blue = 255*(grey-threshold)/(255-threshold);
             }
-
             outputPixels[outputPixel++] = (byte) (blue);
             outputPixels[outputPixel++] = (byte) (green);
             outputPixels[outputPixel++] = (byte) (red);
@@ -245,5 +161,40 @@ public class FixedPointPixels {
 
     public FixedPointPixels clone(String name) {
         return new FixedPointPixels(name, this);
+    }
+
+    public FixedPointPixels scale(int divisor) {
+        FixedPointPixels img = new FixedPointPixels(name+"_"+divisor, width/divisor, height/divisor, false);
+
+        int ytogo = divisor;
+        int linestart = 0;
+        int input = 0;
+        for (int y=0;y<height;y++) {
+            int xtogo = divisor;
+            int output = linestart;
+            for (int x = 0; x< this.width; x++) {
+                img.pixels[output]   += pixels[input++] >> 16;
+                img.pixels[output+1] += pixels[input++] >> 16;
+                img.pixels[output+2] += pixels[input++] >> 16;
+
+                if (--xtogo == 0) {
+                    xtogo = divisor;
+                    output += 3;
+                }
+            }
+
+            if (--ytogo == 0) {
+                ytogo = divisor;
+                linestart += img.width*3;
+            }
+        }
+
+        int inputPixelsPerOutputPixel = divisor*divisor;
+        for (int i=0;i<img.pixels.length;i++) {
+            int pixel = img.pixels[i] / inputPixelsPerOutputPixel;
+            img.pixels[i] = pixel << 16;
+        }
+
+        return img;
     }
 }

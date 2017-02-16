@@ -28,7 +28,7 @@ public class SnapshotProcessingManagerTest {
 
         SnapshotProcessingManager spm = new SnapshotProcessingManager("test", workingDir, false, loggingEventConsumer);
 
-        String zipName = "cam3-day";
+        String zipName = "cam0";
 
         try (ZipInputStream zis = new ZipInputStream(SnapshotProcessingManager.class.getResourceAsStream("/"+zipName+".zip"))) {
 
@@ -46,6 +46,8 @@ public class SnapshotProcessingManagerTest {
                 }
                 zis.closeEntry();
             }
+        } finally {
+            FileUtils.forceDelete(workingDir);
         }
     }
 
