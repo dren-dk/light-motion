@@ -1,6 +1,7 @@
 package dk.dren.lightmotion.onvif;
 
 import lombok.Getter;
+import lombok.Setter;
 import org.w3c.dom.Element;
 
 /**
@@ -12,6 +13,10 @@ public class ONVIFProfile {
     private final Integer framerate;
     private final Integer width;
     private final Integer height;
+    @Setter
+    private String streamUrl;
+    @Setter
+    private String snapshotUri;
 
     ONVIFProfile(Element e) {
         token = e.getAttribute("token");

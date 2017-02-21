@@ -21,6 +21,7 @@ public class MotionDetector implements SnapshotProcessor {
     private final File debugDir;
     private final File maskFile;
     private final int threshold;
+    private final int minArea;
 
     private FixedPointPixels average;
     private FixedPointPixels noise;
@@ -34,7 +35,8 @@ public class MotionDetector implements SnapshotProcessor {
         debugDir = System.getProperty("debug.dir", "").isEmpty() ? null : new File(System.getProperty("debug.dir"));
         maskFile = new File(manager.getWorkingDir(), "movement-mask.png");
 
-        threshold = 10;
+        threshold = 20;
+        minArea = 3;
     }
 
     private BitPixels loadCompatibleMask(FixedPointPixels snapshot) {
@@ -208,7 +210,7 @@ public class MotionDetector implements SnapshotProcessor {
         for (int i=0;i<noisePixels.length;i++) {
             int diffPixel = diffPixels[i];
             int noisePixel = noisePixels[i];
-            int adjustment = diffPixel - noisePixel >> decay;
+            int adjustment = (diffPixel - noisePixel) >> decay;
             noisePixel += adjustment;
 
             if (noisePixel > diffPixel) {
@@ -216,6 +218,7 @@ public class MotionDetector implements SnapshotProcessor {
             } else {
                 diffPixels[i] = diffPixel - noisePixel;
             }
+            noisePixels[i] = noisePixel;
         }
     }
 

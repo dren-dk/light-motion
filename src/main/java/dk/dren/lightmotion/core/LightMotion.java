@@ -110,4 +110,15 @@ public class LightMotion implements Managed, LightMotionEventConsumer {
     public void consumeEvent(LightMotionEvent event) {
         log.info("Event happened "+event);
     }
+
+    public File getFfmpeg() {
+        for (String path : System.getenv("PATH").split(File.pathSeparator)) {
+            File f = new File(path+"/ffmpeg");
+            if (f.isFile() && f.canExecute()) {
+                return f;
+            }
+        }
+
+        return null;
+    }
 }

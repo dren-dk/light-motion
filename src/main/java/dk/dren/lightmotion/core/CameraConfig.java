@@ -38,10 +38,22 @@ public class CameraConfig {
     private String password = "admin";
 
     /**
-     * The profile number to stream from
+     * The profile number to stream high resolution video from
      */
     @JsonProperty
     private Integer profileNumber = 0;
+
+    /**
+     * The profile number to stream low res / low fps snapshots from
+     */
+    @JsonProperty
+    private Integer lowresProfileNumber = 1;
+
+    /**
+     * True if snapshots should be fetched in stead of streaming the lowres
+     */
+    @JsonProperty
+    private boolean lowresSnapshot = false;
 
     /**
      * The framerate of the stream, set only if the camera lies in the ONVIF response

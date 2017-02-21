@@ -24,7 +24,7 @@ public class LightMotionConfig {
      * The minimum interval between polling of jpeg snapshots from each camera in milliseconds.
      */
     @JsonProperty
-    private Integer pollInterval = 5000;
+    private Integer pollInterval = 2000;
 
     /**
      * The directory to store temporary files in, each camera will record into this directory, so there will be a lot

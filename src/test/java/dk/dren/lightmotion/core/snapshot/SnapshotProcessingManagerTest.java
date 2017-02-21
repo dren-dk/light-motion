@@ -6,6 +6,8 @@ import org.apache.commons.io.IOUtils;
 import org.junit.Test;
 
 import java.io.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -13,6 +15,7 @@ import java.util.zip.ZipInputStream;
 public class SnapshotProcessingManagerTest {
 
 
+    private static final Pattern IMAGE_NAME = Pattern.compile("(.+)\\.(png|jpe?g)");
 
     @Test
     public void detectMovement() throws IOException {
@@ -28,7 +31,7 @@ public class SnapshotProcessingManagerTest {
 
         SnapshotProcessingManager spm = new SnapshotProcessingManager("test", workingDir, false, loggingEventConsumer);
 
-        String zipName = "cam0";
+        String zipName = "cam3-night-rain";
 
         try (ZipInputStream zis = new ZipInputStream(SnapshotProcessingManager.class.getResourceAsStream("/"+zipName+".zip"))) {
 
@@ -37,9 +40,10 @@ public class SnapshotProcessingManagerTest {
                 if (entry == null) {
                     break;
                 }
-                if (!entry.isDirectory() && entry.getName().endsWith(".png")) {
+                Matcher nameMatch = IMAGE_NAME.matcher(entry.getName());
+                if (!entry.isDirectory() && nameMatch.matches()) {
                     log.info("Processing "+entry.getName());
-                    String name = zipName + "-" + entry.getName().substring(0, entry.getName().length() - ".png".length());
+                    String name = zipName + "-" + nameMatch.group(1);
                     loggingEventConsumer.setPrefix(name+" ");
                     byte[] data = IOUtils.toByteArray(zis);
                     spm.processSnapshot(name, data);

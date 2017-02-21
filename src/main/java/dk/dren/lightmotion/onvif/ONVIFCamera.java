@@ -38,13 +38,10 @@ import static javax.xml.parsers.DocumentBuilderFactory.newInstance;
 public class ONVIFCamera {
     private final DocumentBuilder PARSER;
 
-    private final String snapshotUri;
-    private final String streamUri;
     private final String cameraAddressAndPort;
     private final String user;
     private final String password;
-    private final int profileNumber;
-    private final ONVIFProfile profile;
+    private final List<ONVIFProfile> profiles;
     private String time = getUTCTimeStamp();
 
     private String getUTCTimeStamp() {
@@ -54,7 +51,7 @@ public class ONVIFCamera {
         return sdf.format(cal.getTime());
     }
 
-    public ONVIFCamera(String cameraAddressAndPort, String user, String password, int profileNumber) throws SOAPException, IOException, SAXException {
+    public ONVIFCamera(String cameraAddressAndPort, String user, String password) throws SOAPException, IOException, SAXException {
         try {
             PARSER = newInstance().newDocumentBuilder();
         } catch (ParserConfigurationException e) {
@@ -64,22 +61,18 @@ public class ONVIFCamera {
         this.cameraAddressAndPort = cameraAddressAndPort;
         this.user = user;
         this.password = password;
-        this.profileNumber = profileNumber;
 
         try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
-            List<ONVIFProfile> profiles = callGetProfiles(client);
-            if (profileNumber < 0 || profileNumber >= profiles.size()) {
-                int i = 0;
-                for (ONVIFProfile p : profiles) {
-                    log.info("Profile #" + i++ + ": " + p);
-                }
-                throw new IllegalArgumentException("The profile number parameter for " + cameraAddressAndPort + " is out of range: 0 <= " + profileNumber + " < " + profiles.size());
+            profiles = callGetProfiles(client);
+
+            log.info("Got profiles from "+cameraAddressAndPort);
+            int i = 0;
+            for (ONVIFProfile p : profiles) {
+                p.setSnapshotUri(callGetSnapshotUri(client, p.getToken()));
+                p.setStreamUrl(callGetStreamUri(client, p.getToken()));
+
+                log.info("Profile #" + i++ + ": " + p+" stream="+p.getStreamUrl()+" snap="+p.getSnapshotUri());
             }
-
-            profile = profiles.get(profileNumber);
-
-            snapshotUri = callGetSnapshotUri(client, profile.getToken());
-            streamUri = callGetStreamUri(client, profile.getToken());
         }
     }
 

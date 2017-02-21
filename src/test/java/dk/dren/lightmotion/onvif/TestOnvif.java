@@ -147,8 +147,11 @@ public class TestOnvif {
             legacy.getMedia().getProfiles();
 */
 //            CameraONVIF cam = new CameraONVIF("10.0.2.9"+i+":8080", "admin", "admin", 0);
-            ONVIFCamera cam = new ONVIFCamera("10.0.2.9"+i+":8080", "admin", "test", 0);
-            log.info("Camera "+i+":\t"+cam.getSnapshotUri()+"\t"+cam.getStreamUri());
+            ONVIFCamera cam = new ONVIFCamera("10.0.2.9"+i+":8080", "admin", "test");
+            System.out.println("Camera "+i);
+            for (ONVIFProfile profile : cam.getProfiles()) {
+                System.out.println("\tstream="+profile.getStreamUrl()+"\tsnap="+profile.getSnapshotUri());
+            }
         }
 
 

@@ -2,6 +2,7 @@ package dk.dren.lightmotion.core;
 
 import dk.dren.lightmotion.core.snapshot.SnapshotProcessingManager;
 import dk.dren.lightmotion.onvif.ONVIFCamera;
+import dk.dren.lightmotion.onvif.ONVIFProfile;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
@@ -46,6 +47,12 @@ public class CameraManager {
     private boolean streamProcessRunning;
     private boolean streamProcessKilling;
     private SnapshotProcessingManager snapshotProcessingManager;
+    private ONVIFProfile highresProfile;
+    private ONVIFProfile lowresProfile;
+    private Process lowresStreamProcess;
+    private boolean lowresStreamProcessRunning;
+    private boolean lowresStreamProcessKilling;
+    private Thread lowresSnapshotThread;
 
     void start() {
         snapshotThread = new Thread(() -> {
@@ -53,7 +60,11 @@ public class CameraManager {
                 snapshotProcessingManager = new SnapshotProcessingManager(this);
                 interrogateOnvif();
                 startStreamThread();
-                pollSnapshots();
+                if (cameraConfig.isLowresSnapshot()) {
+                    lowresHttpJpegSnapshots();
+                } else {
+                    lowresStreamSnapshots();
+                }
             } catch (Throwable e) {
                 if (keepRunning) {
                     log.log(Level.SEVERE, "Failed in the snapshot thread for " + cameraConfig.getName() + ": ", e);
@@ -73,11 +84,14 @@ public class CameraManager {
     }
 
     private void interrogateOnvif() throws SOAPException, SAXException, IOException {
-        onvif = new ONVIFCamera(cameraConfig.getAddress(), cameraConfig.getUser(), cameraConfig.getPassword(), cameraConfig.getProfileNumber());
+        onvif = new ONVIFCamera(cameraConfig.getAddress(), cameraConfig.getUser(), cameraConfig.getPassword());
+
+        highresProfile = onvif.getProfiles().get(cameraConfig.getProfileNumber());
+        lowresProfile = onvif.getProfiles().get(cameraConfig.getLowresProfileNumber());
 
         framerate = cameraConfig.getForceFramerate() != null
                 ? cameraConfig.getForceFramerate()
-                : onvif.getProfile().getFramerate();
+                : highresProfile.getFramerate();
 
         if (framerate == null) {
             error = "Neither ONVIF nor YAML has a framerate for "+cameraConfig.getName()+" add forceFramerate=... to the camera section in the YAML file";
@@ -87,7 +101,7 @@ public class CameraManager {
 
         width = cameraConfig.getForceWidth() != null
                 ? cameraConfig.getForceWidth()
-                : onvif.getProfile().getWidth();
+                : highresProfile.getWidth();
         if (width == null) {
             error = "Neither ONVIF nor YAML has a width for "+cameraConfig.getName()+" add forceWidth=... to the camera section in the YAML file";
             log.severe(error);
@@ -96,7 +110,7 @@ public class CameraManager {
 
         height = cameraConfig.getForceHeight() != null
                 ? cameraConfig.getForceHeight()
-                : onvif.getProfile().getHeight();
+                : highresProfile.getHeight();
         if (height == null) {
             error = "Neither ONVIF nor YAML has a height for "+cameraConfig.getName()+" add forceHeight=... to the camera section in the YAML file";
             log.severe(error);
@@ -106,7 +120,11 @@ public class CameraManager {
 
 
     private void startStreamThread() {
-        snapshotThread.setName("Polling snapshots from "+cameraConfig.getName()+" via "+onvif.getSnapshotUri());
+        if (System.getProperty("nostream","").equals("true")) {
+            return;
+        }
+
+        snapshotThread.setName("Polling snapshots from "+cameraConfig.getName()+" via "+lowresProfile.getSnapshotUri());
         streamThread = new Thread(() -> {
             try {
                 streamer();
@@ -117,7 +135,7 @@ public class CameraManager {
                 }
             }
         });
-        streamThread.setName("Streaming from "+cameraConfig.getName()+" via "+onvif.getStreamUri());
+        streamThread.setName("Streaming from "+cameraConfig.getName()+" via "+lowresProfile.getSnapshotUri());
         streamThread.setDaemon(true);
         streamThread.start();
     }
@@ -137,6 +155,10 @@ public class CameraManager {
 
     public File videoDir() {
         return new File(camDir(), "video");
+    }
+
+    public File lowresDir() {
+        return new File(camDir(), "work/lowres");
     }
 
     private long getStreamerPid() {
@@ -168,7 +190,7 @@ public class CameraManager {
         }
     }
 
-    private void killProcess(long streamerPid, String signal) throws InterruptedException, IOException {
+    private static void killProcess(long streamerPid, String signal) throws InterruptedException, IOException {
         ProcessBuilder killer = new ProcessBuilder("kill", "-"+signal, Long.toString(streamerPid));
         killer.inheritIO().start().waitFor();
     }
@@ -193,7 +215,7 @@ public class CameraManager {
             cmd.add("-h"); cmd.add(height.toString()); // Set width
             cmd.add("-F"); cmd.add(videoDir().getAbsolutePath()+"/"+timestamp); // The output directory + file prefix
             cmd.add("-P"); cmd.add(lightMotion.getConfig().getChunkLength().toString()); // Length of the chunks to record
-            cmd.add(onvif.getStreamUri());
+            cmd.add(highresProfile.getStreamUrl());
 
             log.info("Running: "+String.join(" ", cmd));
             ProcessBuilder pb = new ProcessBuilder(cmd);
@@ -223,16 +245,18 @@ public class CameraManager {
 
     /**
      * fetches a snapshot from the camera and stores it in the queue for the main thread to take care of
+     *
+     * ffmpeg -probesize 32 -i rtsp://10.0.2.93:554/12 -r 1/1 -f image2 frame%04d.pnm
      */
-    private void pollSnapshots() throws InterruptedException, IOException {
+    private void lowresHttpJpegSnapshots() throws InterruptedException, IOException {
         try (CloseableHttpClient hc = HttpClients.createDefault()) {
             while (keepRunning) {
 
-                log.fine("Fetching "+onvif.getSnapshotUri());
-                HttpGet req = new HttpGet(onvif.getSnapshotUri());
+                log.fine("Fetching "+lowresProfile.getSnapshotUri());
+                HttpGet req = new HttpGet(lowresProfile.getSnapshotUri());
                 try (CloseableHttpResponse response = hc.execute(req)) {
                     if (response.getStatusLine().getStatusCode() != 200) {
-                        log.severe("Got error response "+response.getStatusLine().getStatusCode()+" from "+onvif.getSnapshotUri());
+                        log.severe("Got error response "+response.getStatusLine().getStatusCode()+" from "+lowresProfile.getSnapshotUri());
                         Thread.sleep(5000);
 
                     } else {
@@ -244,11 +268,11 @@ public class CameraManager {
                         String imageName = cameraConfig.getName()+"-"+getTimeStamp();
 
                         // This might block while waiting for room in the queue, so we do this after closing the http response
-                        lightMotion.getSnapshots().add(new CameraSnapshot(snapshotProcessingManager, imageName, imageBytes));
+                        lightMotion.getSnapshots().add(new CameraSnapshotByteArray(snapshotProcessingManager, imageName, imageBytes));
                     }
 
                 } catch (Exception e) {
-                    log.warning("Failed while requesting "+onvif.getSnapshotUri()+" "+e);
+                    log.warning("Failed while requesting "+lowresProfile.getSnapshotUri()+" "+e);
                 }
 
                 Thread.sleep(lightMotion.getConfig().getPollInterval());
@@ -256,14 +280,81 @@ public class CameraManager {
         }
     }
 
+    private void lowresStreamSnapshots() throws InterruptedException, IOException {
+        File lowresDir = lowresDir();
+        FileUtils.forceMkdir(lowresDir);
+
+        lowresSnapshotThread = new Thread(() -> {
+            try {
+                lowresSnapshotLoader();
+            } catch (Throwable e) {
+                if (!keepRunning) {
+                    log.log(Level.SEVERE, "Failed in the lowres loading thread for " + cameraConfig.getName() + ": ", e);
+                    error = "Lowres loading thread exited " + e.toString();
+                }
+            }
+        });
+        lowresSnapshotThread.setName("Loading lowres snapshots from "+cameraConfig.getName()+" via "+lowresProfile.getSnapshotUri());
+        lowresSnapshotThread.setDaemon(true);
+        lowresSnapshotThread.start();
+
+        while (keepRunning) {
+            String timestamp = getTimeStamp();
 
 
-    /**
-     * Handle a snapshot image in the main motion detection thread.
-     *
-     * @param imageBytes The snapshot received from the camera.
-     */
-    public void processSnapshot(byte[] imageBytes) {
-        log.info("Processing image");
+            // ffmpeg -probesize 32 -i rtsp://10.0.2.93:554/12 -r 1/1 -f image2 frame%04d.pnm
+            List<String> cmd = new ArrayList<>();
+            cmd.add(lightMotion.getFfmpeg().getAbsolutePath());
+            cmd.add("-probesize");
+            cmd.add("32");
+            cmd.add("-i");
+            cmd.add(lowresProfile.getStreamUrl());
+            cmd.add("-r");
+            cmd.add("1/1");
+            cmd.add("-f");
+            cmd.add("image2");
+            cmd.add("frame%04d.ppm");
+
+            log.info("Running: "+String.join(" ", cmd));
+            ProcessBuilder pb = new ProcessBuilder(cmd);
+            pb.redirectError(new File(lowresDir, timestamp+".log"));
+            pb.redirectOutput(new File("/dev/null"));
+            pb.directory(lowresDir);
+
+            lowresStreamProcess = pb.start();
+            lowresStreamProcessRunning = true;
+            int err = -1;
+            try {
+                err = lowresStreamProcess.waitFor();
+                log.info("Exit code from ffmpeg was: "+err);
+            } finally {
+                lowresStreamProcessRunning = false;
+                lowresStreamProcessKilling = false;
+            }
+            if (err != 0) {
+                Thread.sleep(1000); // Don't burn all the CPU in case of an error.
+            }
+        }
+    }
+
+    private void lowresSnapshotLoader() throws InterruptedException {
+        while (keepRunning) {
+            File dir = lowresDir();
+
+            for (File file : dir.listFiles()) {
+                if (file.getName().endsWith(".ppm") && file.isFile()) {
+                    String imageName = cameraConfig.getName()+"-"+getTimeStamp();
+
+                    // This might block while waiting for room in the queue, so we do this after closing the http response
+                    CameraSnapshotFile sn = new CameraSnapshotFile(snapshotProcessingManager, imageName, file);
+                    if (lightMotion.getSnapshots().offer(sn)) {
+                        sn.getImageBytes(); // Force loading in the loading thread.
+                    }
+                    file.delete();
+                }
+            }
+
+            Thread.sleep(500);
+        }
     }
 }

@@ -13,6 +13,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -58,7 +59,12 @@ public class SnapshotProcessingManager {
     public void processSnapshot(String name, byte[] imageBytes) throws IOException {
         final BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
         if (storeSnapshots) {
-            ImageIO.write(image, "png", new File(snapshotsDir, name + ".png"));
+            String mimeType = URLConnection.guessContentTypeFromStream(new ByteArrayInputStream(imageBytes));
+            if (mimeType != null && mimeType.startsWith("image/")) {
+                FileUtils.writeByteArrayToFile(new File(snapshotsDir, name + "." + mimeType.replaceAll("image/", "")), imageBytes);
+            } else {
+                ImageIO.write(image, "png", new File(snapshotsDir, name + ".png"));
+            }
         }
 
         final FixedPointPixels fixed = new FixedPointPixels(name, image);
