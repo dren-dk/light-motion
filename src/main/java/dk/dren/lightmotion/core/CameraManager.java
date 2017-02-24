@@ -23,6 +23,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 /**
  * Read a camera, this means two things:
@@ -339,22 +340,44 @@ public class CameraManager {
 
     private void lowresSnapshotLoader() throws InterruptedException {
         while (keepRunning) {
+            Thread.sleep(500);
             File dir = lowresDir();
 
-            for (File file : dir.listFiles()) {
-                if (file.getName().endsWith(".ppm") && file.isFile()) {
-                    String imageName = cameraConfig.getName()+"-"+getTimeStamp();
-
-                    // This might block while waiting for room in the queue, so we do this after closing the http response
-                    CameraSnapshotFile sn = new CameraSnapshotFile(snapshotProcessingManager, imageName, file);
-                    if (lightMotion.getSnapshots().offer(sn)) {
-                        sn.getImageBytes(); // Force loading in the loading thread.
-                    }
-                    file.delete();
-                }
+            File[] files = dir.listFiles();
+            if (files == null) {
+                continue;
+            }
+            List<File> fileList = new ArrayList<>();
+            for (File f : files) {
+               if (f.getName().endsWith(".ppm") && f.isFile()) {
+                   fileList.add(f);
+               }
+            }
+            if (fileList.size() < 2) {
+                continue; // Wait until there's at least two files in the buffer
             }
 
-            Thread.sleep(500);
+            // Sort first by timestamp and then by name if that fails
+            fileList.sort((f1,f2) -> {
+                long m1 = f1.lastModified();
+                long m2 = f2.lastModified();
+                if (m1 != m2) {
+                    return Long.compare(m1, m2);
+                } else {
+                    return f1.getName().compareTo(f2.getName());
+                }
+            });
+            fileList.remove(fileList.size()-1); // Don't load the newest file.
+
+            for (File file : fileList) {
+                String imageName = cameraConfig.getName()+"-"+getTimeStamp();
+
+                CameraSnapshotFile sn = new CameraSnapshotFile(snapshotProcessingManager, imageName, file);
+                if (lightMotion.getSnapshots().offer(sn)) {
+                    sn.getImageBytes(); // Force loading the bytes into memory, so decoding can happen in the loading thread.
+                }
+                file.delete();
+            }
         }
     }
 }

@@ -57,17 +57,22 @@ public class SnapshotProcessingManager {
     }
 
     public void processSnapshot(String name, byte[] imageBytes) throws IOException {
-        final BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
         if (storeSnapshots) {
             String mimeType = URLConnection.guessContentTypeFromStream(new ByteArrayInputStream(imageBytes));
+            String type = "ppm";
             if (mimeType != null && mimeType.startsWith("image/")) {
-                FileUtils.writeByteArrayToFile(new File(snapshotsDir, name + "." + mimeType.replaceAll("image/", "")), imageBytes);
-            } else {
-                ImageIO.write(image, "png", new File(snapshotsDir, name + ".png"));
+                type = mimeType.replaceAll("image/", "");
             }
+            FileUtils.writeByteArrayToFile(new File(snapshotsDir, name + "." + type), imageBytes);
         }
 
-        final FixedPointPixels fixed = new FixedPointPixels(name, image);
+
+        long t0 = System.currentTimeMillis();
+        final FixedPointPixels fixed = FixedPointPixels.readFromAnyBytes(name, imageBytes);
+        long duration = System.currentTimeMillis()-t0;
+        if (duration > 100) {
+            log.warning("Loaded " + name + " in " + duration + " ms");
+        }
 
         for (SnapshotProcessor processor : processors) {
             try {

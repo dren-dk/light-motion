@@ -15,7 +15,7 @@ import java.util.zip.ZipInputStream;
 public class SnapshotProcessingManagerTest {
 
 
-    private static final Pattern IMAGE_NAME = Pattern.compile("(.+)\\.(png|jpe?g)");
+    private static final Pattern IMAGE_NAME = Pattern.compile("(.+)\\.(ppm|png|jpe?g)");
 
     @Test
     public void detectMovement() throws IOException {
@@ -31,7 +31,7 @@ public class SnapshotProcessingManagerTest {
 
         SnapshotProcessingManager spm = new SnapshotProcessingManager("test", workingDir, false, loggingEventConsumer);
 
-        String zipName = "cam3-night-rain";
+        String zipName = "ppms-at-night";
 
         try (ZipInputStream zis = new ZipInputStream(SnapshotProcessingManager.class.getResourceAsStream("/"+zipName+".zip"))) {
 

@@ -7,6 +7,7 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 
@@ -37,12 +38,15 @@ public class FixedPointPixels {
         height = image.getHeight();
 
         if (image.getType() != BufferedImage.TYPE_3BYTE_BGR) {
-            log.warning("Converting image type "+image.getType());
+            long t0 = System.currentTimeMillis();
+
             BufferedImage converted = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_3BYTE_BGR);
             Graphics graphics = converted.getGraphics();
             graphics.drawImage(image, 0, 0, null);
             graphics.dispose();
             image = converted;
+            long duration = System.currentTimeMillis()-t0;
+            log.warning("Converted image type "+image.getType()+" in "+duration+" ms");
         }
 
         monochrome = false;
@@ -72,6 +76,15 @@ public class FixedPointPixels {
         this.width = original.width;
         this.height = original.height;
         this.monochrome = original.monochrome;
+    }
+
+    public static FixedPointPixels readFromAnyBytes(String name, byte[] imageBytes) throws IOException {
+        if (imageBytes[0] == 'P' && imageBytes[1] == '6') {
+            return PPMParser.readPPM6(name, imageBytes);
+        } else {
+            final BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
+            return new FixedPointPixels(name, image);
+        }
     }
 
     public long diffSum(FixedPointPixels other) {
