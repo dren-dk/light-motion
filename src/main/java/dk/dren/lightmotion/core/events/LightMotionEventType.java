@@ -16,7 +16,10 @@ public enum LightMotionEventType {
     MOTION,
     WHITEOUT,
     BLACKOUT,
-    GLOBAL_CHANGE,
-    QUIET
+    GLOBAL_CHANGE;
 
+
+    public boolean isDetection() {
+        return this.equals(MOTION) || this.equals(WHITEOUT) || this.equals(BLACKOUT) || this.equals(GLOBAL_CHANGE);
+    }
 }

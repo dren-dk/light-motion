@@ -1,5 +1,6 @@
 package dk.dren.lightmotion.core;
 
+import dk.dren.lightmotion.core.events.LightMotionEvent;
 import dk.dren.lightmotion.core.snapshot.SnapshotProcessingManager;
 import dk.dren.lightmotion.onvif.ONVIFCamera;
 import dk.dren.lightmotion.onvif.ONVIFProfile;
@@ -20,21 +21,24 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 
 /**
  * Read a camera, this means two things:
  * 1: Run a thread that periodically polls the snapshot url to get a snapshot, which is then fed into the snapshot queue.
  * 2: Run a thread that starts the external streamer process and waits for it to quit and if it does, then restarts it.
+ *
+ * TODO: Split out the 3 threads that manage external processes, so this class gets smaller.
  */
 @Log
 @RequiredArgsConstructor
 @Getter
-public class CameraManager {
-    private final LightMotion lightMotion;
+public class CameraManager implements dk.dren.lightmotion.core.events.LightMotionEventSink {
+    private final LightMotionEventSink lightMotion;
     private final CameraConfig cameraConfig;
     private Thread snapshotThread;
     private Thread streamThread;
@@ -54,10 +58,12 @@ public class CameraManager {
     private boolean lowresStreamProcessRunning;
     private boolean lowresStreamProcessKilling;
     private Thread lowresSnapshotThread;
+    private MovieMaker movieMaker;
 
     void start() {
         snapshotThread = new Thread(() -> {
             try {
+                movieMaker = new MovieMaker(this);
                 snapshotProcessingManager = new SnapshotProcessingManager(this);
                 interrogateOnvif();
                 startStreamThread();
@@ -146,20 +152,20 @@ public class CameraManager {
         return sdf.format(new Date());
     }
 
-    public File camDir() {
-        return new File(lightMotion.getConfig().getWorkingRoot(), "cam/"+cameraConfig.getName());
+    public File getChunkDir() {
+        return new File(lightMotion.getConfig().getChunkRoot(), cameraConfig.getName());
     }
 
-    public File workingDir() {
-        return new File(camDir(), "work");
+    public File getWorkingDir() {
+        return new File(lightMotion.getConfig().getWorkingRoot(), cameraConfig.getName());
     }
 
-    public File videoDir() {
-        return new File(camDir(), "video");
+    public File getRecordingDir() {
+        return new File(lightMotion.getConfig().getRecordingRoot(), cameraConfig.getName());
     }
 
-    public File lowresDir() {
-        return new File(camDir(), "work/lowres");
+    public File getStateDir() {
+        return new File(lightMotion.getConfig().getStateRoot(), cameraConfig.getName());
     }
 
     private long getStreamerPid() {
@@ -204,7 +210,7 @@ public class CameraManager {
         while (keepRunning) {
 
             String timestamp = getTimeStamp();
-            FileUtils.forceMkdir(videoDir());
+            FileUtils.forceMkdir(getChunkDir());
 
             List<String> cmd = new ArrayList<>();
             cmd.add(lightMotion.getOpenRTSP().getAbsolutePath());
@@ -214,15 +220,15 @@ public class CameraManager {
             cmd.add("-f"); cmd.add(framerate.toString()); // Set framerate
             cmd.add("-w"); cmd.add(width.toString()); // Set width
             cmd.add("-h"); cmd.add(height.toString()); // Set width
-            cmd.add("-F"); cmd.add(videoDir().getAbsolutePath()+"/"+timestamp); // The output directory + file prefix
+            cmd.add("-F"); cmd.add(getChunkDir().getAbsolutePath()+"/"+timestamp); // The output directory + file prefix
             cmd.add("-P"); cmd.add(lightMotion.getConfig().getChunkLength().toString()); // Length of the chunks to record
             cmd.add(highresProfile.getStreamUrl());
 
             log.info("Running: "+String.join(" ", cmd));
             ProcessBuilder pb = new ProcessBuilder(cmd);
-            pb.redirectError(new File(videoDir(), timestamp+".log"));
+            pb.redirectError(new File(getChunkDir(), "openrtsp.log"));
             pb.redirectOutput(new File("/dev/null"));
-            pb.directory(videoDir());
+            pb.directory(getChunkDir());
 
             streamProcess = pb.start();
             streamProcessRunning = true;
@@ -282,8 +288,7 @@ public class CameraManager {
     }
 
     private void lowresStreamSnapshots() throws InterruptedException, IOException {
-        File lowresDir = lowresDir();
-        FileUtils.forceMkdir(lowresDir);
+        File lowresDir = getWorkingDir();
 
         lowresSnapshotThread = new Thread(() -> {
             try {
@@ -300,8 +305,6 @@ public class CameraManager {
         lowresSnapshotThread.start();
 
         while (keepRunning) {
-            String timestamp = getTimeStamp();
-
 
             // ffmpeg -probesize 32 -i rtsp://10.0.2.93:554/12 -r 1/1 -f image2 frame%04d.pnm
             List<String> cmd = new ArrayList<>();
@@ -318,7 +321,7 @@ public class CameraManager {
 
             log.info("Running: "+String.join(" ", cmd));
             ProcessBuilder pb = new ProcessBuilder(cmd);
-            pb.redirectError(new File(lowresDir, timestamp+".log"));
+            pb.redirectError(new File(lowresDir, "ffmpeg.log"));
             pb.redirectOutput(new File("/dev/null"));
             pb.directory(lowresDir);
 
@@ -338,35 +341,16 @@ public class CameraManager {
         }
     }
 
-    private void lowresSnapshotLoader() throws InterruptedException {
+    private void lowresSnapshotLoader() throws InterruptedException, IOException {
+        SortedDir sortedWorkingDir = new SortedDir(getWorkingDir(), ".ppm");
+
         while (keepRunning) {
             Thread.sleep(500);
-            File dir = lowresDir();
 
-            File[] files = dir.listFiles();
-            if (files == null) {
-                continue;
-            }
-            List<File> fileList = new ArrayList<>();
-            for (File f : files) {
-               if (f.getName().endsWith(".ppm") && f.isFile()) {
-                   fileList.add(f);
-               }
-            }
+            List<File> fileList = sortedWorkingDir.list();
             if (fileList.size() < 2) {
                 continue; // Wait until there's at least two files in the buffer
             }
-
-            // Sort first by timestamp and then by name if that fails
-            fileList.sort((f1,f2) -> {
-                long m1 = f1.lastModified();
-                long m2 = f2.lastModified();
-                if (m1 != m2) {
-                    return Long.compare(m1, m2);
-                } else {
-                    return f1.getName().compareTo(f2.getName());
-                }
-            });
             fileList.remove(fileList.size()-1); // Don't load the newest file.
 
             for (File file : fileList) {
@@ -379,5 +363,11 @@ public class CameraManager {
                 file.delete();
             }
         }
+    }
+
+    @Override
+    public void notify(LightMotionEvent event) {
+        lightMotion.notify(event);
+        movieMaker.notify(event);
     }
 }

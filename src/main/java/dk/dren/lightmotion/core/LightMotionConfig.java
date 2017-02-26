@@ -30,10 +30,28 @@ public class LightMotionConfig {
      * The directory to store temporary files in, each camera will record into this directory, so there will be a lot
      * of sequential writing to a number of files in parallel, so it might eat an SSD too quickly.
      *
-     * Default is to use ${HOME}/.light-motion/working
+     * Default is to use /run/user/${uid}/light-motion if possible or /tmp/light-motion otherwise
      */
     @JsonProperty
-    private File workingRoot = new File(System.getProperty("user.home"), ".light-motion/working");
+    private File workingRoot = TmpFsFinder.getDefaultTmpFs();
+
+    /**
+     * The directory where the long-term state is stored.
+     *
+     * Default is to use ${HOME}/.light-motion/state
+     */
+    @JsonProperty
+    private File stateRoot = new File(System.getProperty("user.home"), ".light-motion/state");
+
+    /**
+     * The directory where the recordings are written before motion is detected.
+     *
+     * 12 MB per minute per camera is written here.
+     *
+     * Default is to use ${HOME}/.light-motion/pre-record
+     */
+    @JsonProperty
+    private File chunkRoot = new File(System.getProperty("user.home"), ".light-motion/chunks");
 
     /**
      * The directory where the recordings are written when motion is detected.
@@ -45,10 +63,27 @@ public class LightMotionConfig {
 
 
     /**
-     * The number of seconds to record in each chunk before the movement happens, default is 60 seconds.
+     * The number of seconds to record in each chunk, default is 60 seconds.
+     *
+     * The minimum recording size will be chunkLength*(chunksBeforeDetection+chunksAfterDetection) seconds long
      */
     @JsonProperty
     private final Integer chunkLength = 60;
+
+    /**
+     * The number of chunks to keep before movement was detected
+     *
+     * The minimum recording size will be chunkLength*(chunksBeforeDetection+chunksAfterDetection) seconds long
+     */
+    @JsonProperty
+    private final Integer chunksBeforeDetection = 2;
+
+    /**
+     * The number of chunks to keep after movement was no-longer detected
+     *
+     * The minimum recording size will be chunkLength*(chunksBeforeDetection+chunksAfterDetection) seconds long
+     */
+    @JsonProperty
+    private final Integer chunksAfterDetection = 2;
+
 }
-
-

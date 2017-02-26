@@ -14,7 +14,7 @@ server:
     port: 8080
 
 
-lightMotion:
+downstream:
   cameras:
     - name: Skur
       address: 10.0.2.90:8080

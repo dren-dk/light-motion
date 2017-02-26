@@ -1,7 +1,6 @@
 package dk.dren.lightmotion.core;
 
 import dk.dren.lightmotion.core.events.LightMotionEvent;
-import dk.dren.lightmotion.core.events.LightMotionEventConsumer;
 import io.dropwizard.lifecycle.Managed;
 import lombok.Getter;
 import lombok.extern.java.Log;
@@ -18,7 +17,7 @@ import java.util.logging.Level;
  * The core class of the light motion system
  */
 @Log
-public class LightMotion implements Managed, LightMotionEventConsumer {
+public class LightMotionEventSink implements Managed, dk.dren.lightmotion.core.events.LightMotionEventSink {
     @Getter
     private LightMotionConfig config;
     private Thread motionThread;
@@ -27,11 +26,13 @@ public class LightMotion implements Managed, LightMotionEventConsumer {
     @Getter
     private final ArrayBlockingQueue<CameraSnapshot> snapshots;
 
-    public LightMotion(LightMotionConfig config) throws IOException {
+    public LightMotionEventSink(LightMotionConfig config) throws IOException {
         this.config = config;
 
-        FileUtils.forceMkdir(config.getRecordingRoot());
-        FileUtils.forceMkdir(config.getWorkingRoot());
+        mkdir(config.getRecordingRoot(), "recordingRoot");
+        mkdir(config.getWorkingRoot(), "workingRoot");
+        mkdir(config.getStateRoot(), "stateRoot");
+        mkdir(config.getChunkRoot(), "chunkRoot");
 
         extractOpenRTSP();
 
@@ -39,12 +40,20 @@ public class LightMotion implements Managed, LightMotionEventConsumer {
             cameraManagers.put(cameraConfig.getAddress(), new CameraManager(this, cameraConfig));
         }
 
-        snapshots = new ArrayBlockingQueue<>(cameraManagers.size());
+        snapshots = new ArrayBlockingQueue<>(cameraManagers.size()*2);
+    }
+
+    private void mkdir(File dir, String name) {
+        try {
+            FileUtils.forceMkdir(dir);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Failed to create the directory specified by "+name+"="+dir, e);
+        }
     }
 
     private void extractOpenRTSP() throws IOException {
         File fn = getOpenRTSP();
-        try (InputStream is = LightMotion.class.getResourceAsStream("/openRTSP");
+        try (InputStream is = LightMotionEventSink.class.getResourceAsStream("/openRTSP");
              OutputStream os = new FileOutputStream(fn)) {
             IOUtils.copy(is, os);
         }
@@ -52,7 +61,7 @@ public class LightMotion implements Managed, LightMotionEventConsumer {
     }
 
     File getOpenRTSP() {
-        return new File(config.getWorkingRoot(), "openRTSP");
+        return new File(config.getChunkRoot(), "openRTSP");
     }
 
     private void motionState(String s) {
@@ -107,7 +116,7 @@ public class LightMotion implements Managed, LightMotionEventConsumer {
     }
 
     @Override
-    public void consumeEvent(LightMotionEvent event) {
+    public void notify(LightMotionEvent event) {
         log.info("Event happened "+event);
     }
 

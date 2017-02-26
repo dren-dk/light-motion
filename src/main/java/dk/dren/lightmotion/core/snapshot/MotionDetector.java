@@ -31,11 +31,11 @@ public class MotionDetector implements SnapshotProcessor {
 
     public MotionDetector(SnapshotProcessingManager manager) {
         this.manager = manager;
-        averageFile = new File(manager.getWorkingDir(), "average.png");
+        averageFile = new File(manager.getStateDir(), "average.png");
         debugDir = System.getProperty("debug.dir", "").isEmpty() ? null : new File(System.getProperty("debug.dir"));
-        maskFile = new File(manager.getWorkingDir(), "movement-mask.png");
+        maskFile = new File(manager.getStateDir(), "movement-mask.png");
 
-        threshold = 20;
+        threshold = 40;
         minArea = 3;
     }
 
@@ -190,11 +190,11 @@ public class MotionDetector implements SnapshotProcessor {
                 log.info("Detected motion at "+detected.getMaxDiffX()+","+detected.getMaxDiffY()+ " = "+detected.getMaxDiff());
                 quiet = false;
                 quietCount = 0;
-                return new LightMotionEvent(LightMotionEventType.MOTION, manager.getCameraName(), "Detected motion ("+detected.getMaxDiff()+")");
+                return new LightMotionEvent(LightMotionEventType.MOTION, false, manager.getCameraName(), "Detected motion ("+detected.getMaxDiff()+")");
             } else {
                 if (!quiet && quietCount++ > 10) {
                     quiet = true;
-                    return new LightMotionEvent(LightMotionEventType.QUIET, manager.getCameraName(), "No motion detected");
+                    return new LightMotionEvent(LightMotionEventType.MOTION, true, manager.getCameraName(), "No motion detected");
                 }
             }
 

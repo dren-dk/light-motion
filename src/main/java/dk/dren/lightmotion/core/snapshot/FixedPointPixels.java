@@ -80,10 +80,9 @@ public class FixedPointPixels {
 
     public static FixedPointPixels readFromAnyBytes(String name, byte[] imageBytes) throws IOException {
         if (imageBytes[0] == 'P' && imageBytes[1] == '6') {
-            return PPMParser.readPPM6(name, imageBytes);
+            return PPMParser.readPPM6(name, imageBytes); // Fast path, hopefully always taken
         } else {
-            final BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
-            return new FixedPointPixels(name, image);
+            return new FixedPointPixels(name, ImageIO.read(new ByteArrayInputStream(imageBytes))); // Slow, but widely compatible
         }
     }
 

@@ -1,7 +1,7 @@
 package dk.dren.lightmotion;
 
 import dk.dren.lightmotion.config.ServerConfiguration;
-import dk.dren.lightmotion.core.LightMotion;
+import dk.dren.lightmotion.core.LightMotionEventSink;
 import dk.dren.lightmotion.db.PhoneDB;
 import dk.dren.lightmotion.healthchecks.DiskSpaceCheck;
 import dk.dren.lightmotion.injectors.InjectorBinder;
@@ -72,7 +72,7 @@ public class Server extends Application<ServerConfiguration>{
 	@Override
 	public void run(ServerConfiguration configuration, Environment environment) throws Exception {
 		// Register injectors.
-		LightMotion cameraManager = new LightMotion(configuration.getLightMotion());
+		LightMotionEventSink cameraManager = new LightMotionEventSink(configuration.getLightMotion());
 
 		environment.jersey().register(new InjectorBinder(configuration, new PhoneDB()));
 
