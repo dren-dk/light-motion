@@ -75,4 +75,13 @@ public class CameraConfig {
 
     @JsonProperty
     private Boolean storeSnapshots = false;
+
+    /**
+     * The port number to use for streaming RTSP from this camera, it must be even
+     * The ports from port to port+3 are used, so if you allocate manually space them 4 apart
+     *
+     * Default is 0 which causes lightmotion to allocate ports automatically
+     */
+    @JsonProperty
+    private Integer rtspClientPort = 0;
 }

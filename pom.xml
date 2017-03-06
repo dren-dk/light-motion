@@ -167,6 +167,14 @@ Not releasded yet and I don't want to depend on a locally compiled artifact, so 
             <version>4.3.0</version>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-collections4 -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
+            <version>4.1</version>
+        </dependency>
+
+
     </dependencies>
 	
   <build>

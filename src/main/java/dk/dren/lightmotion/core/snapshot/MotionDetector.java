@@ -16,6 +16,7 @@ import java.util.logging.Level;
  */
 @Log
 public class MotionDetector implements SnapshotProcessor {
+    public static final int STATE_STORAGE_INTERVAL = 30 * 1000;
     private final SnapshotProcessingManager manager;
     private final File averageFile;
     private final File debugDir;
@@ -174,12 +175,8 @@ public class MotionDetector implements SnapshotProcessor {
 
 
             log.fine(manager.getCameraName()+": diff time: "+(t1-t0));
-            // TODO: Don't store the state file for every frame and remember to load it when starting too
-            try {
-                average.write(averageFile);
-            } catch (Exception e) {
-                log.log(Level.SEVERE, "Failed to write average to "+averageFile, e);
-            }
+
+            storeState();
 
             MotionDetectionResult detected = analyzeDiff(diff, threshold);
             if (debugDir != null) {
@@ -187,20 +184,33 @@ public class MotionDetector implements SnapshotProcessor {
             }
 
             if (detected.isMovementDetected())  {
-                log.info("Detected motion at "+detected.getMaxDiffX()+","+detected.getMaxDiffY()+ " = "+detected.getMaxDiff());
+                log.fine("Detected motion at "+detected.getMaxDiffX()+","+detected.getMaxDiffY()+ " = "+detected.getMaxDiff());
                 quiet = false;
                 quietCount = 0;
-                return new LightMotionEvent(LightMotionEventType.MOTION, false, manager.getCameraName(), "Detected motion ("+detected.getMaxDiff()+")");
+                return LightMotionEvent.start(LightMotionEventType.MOTION, manager.getCameraName(), "Detected motion ("+detected.getMaxDiff()+")");
             } else {
                 if (!quiet && quietCount++ > 10) {
                     quiet = true;
-                    return new LightMotionEvent(LightMotionEventType.MOTION, true, manager.getCameraName(), "No motion detected");
+                    return LightMotionEvent.end(LightMotionEventType.MOTION, manager.getCameraName(), "No motion detected");
                 }
             }
-
         }
 
         return null;
+    }
+
+    private long lastStateStorage = 0;
+    private void storeState() {
+
+        long now = System.currentTimeMillis();
+        if (now-lastStateStorage > STATE_STORAGE_INTERVAL) {
+            lastStateStorage = now+(int)(Math.random()*10000); // Add a little randomness, to allow the stage storage of different motion detectors to be spread out in time
+            try {
+                average.write(averageFile);
+            } catch (Exception e) {
+                log.log(Level.SEVERE, "Failed to write average to " + averageFile, e);
+            }
+        }
     }
 
     private void updateAverageAndSubtract(FixedPointPixels noise, FixedPointPixels diff, final int decay) {

@@ -7,7 +7,6 @@ import dk.dren.lightmotion.onvif.ONVIFProfile;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -38,7 +37,7 @@ import java.util.logging.Level;
 @RequiredArgsConstructor
 @Getter
 public class CameraManager implements dk.dren.lightmotion.core.events.LightMotionEventSink {
-    private final LightMotionEventSink lightMotion;
+    private final LightMotion lightMotion;
     private final CameraConfig cameraConfig;
     private Thread snapshotThread;
     private Thread streamThread;
@@ -61,8 +60,14 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
     private MovieMaker movieMaker;
 
     void start() {
+
         snapshotThread = new Thread(() -> {
             try {
+                LightMotion.mkdir(getChunkDir(), "camera-chunks");
+                LightMotion.mkdir(getStateDir(), "camera-state");
+                LightMotion.mkdir(getRecordingDir(), "camera-recording");
+                LightMotion.mkdir(getWorkingDir(), "camera-working");
+
                 movieMaker = new MovieMaker(this);
                 snapshotProcessingManager = new SnapshotProcessingManager(this);
                 interrogateOnvif();
@@ -202,24 +207,58 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
         killer.inheritIO().start().waitFor();
     }
 
-    /**
-     * Keep the openRTSP process running if it crashes.
-     */
     private void streamer() throws IOException, InterruptedException {
 
         while (keepRunning) {
+            String timestamp = getTimeStamp();
+
+            ProcessBuilder pb = new ProcessBuilder("ffmpeg",
+                    "-i", highresProfile.getStreamUrl(), "-map", "0",
+                    "-probesize", "32",
+                    "-f", "segment", "-segment_time", lightMotion.getConfig().getChunkLength().toString(), "-segment_atclocktime", "1", "-segment_format", "mp4",
+                    "-vcodec", "copy", "-an",
+                    timestamp+"-%010d.mp4");
+            pb.directory(getChunkDir());
+
+            log.info("Running: "+String.join(" ", pb.command()));
+            streamProcess = pb.start();
+            StreamFifoLogger.glom(streamProcess.getErrorStream(), new File(getChunkDir(), "ffmpeg.err"));
+            StreamFifoLogger.glom(streamProcess.getInputStream(), new File(getChunkDir(), "ffmpeg.out"));
+            streamProcessRunning = true;
+            int err = -1;
+            try {
+                err = streamProcess.waitFor();
+                log.info("Exit code from ffmpeg streamer was: "+err);
+            } finally {
+                streamProcessRunning = false;
+                streamProcessKilling = false;
+            }
+            if (err != 0) {
+                Thread.sleep(1000); // Don't burn all the CPU in case of an error.
+            }
+        }
+
+        if (streamProcessRunning) {
+            killStreamer();
+        }
+    }
+
+    private void openRTSPstreamer() throws IOException, InterruptedException {
+
+        while (keepRunning) {
+            //  ffmpeg -i rtsp://10.0.2.97:554/11 -map 0 -f segment -segment_time 60 -segment_atclocktime 1 -segment_format mp4 -vcodec copy -an "capture-%010d.mp4"
 
             String timestamp = getTimeStamp();
-            FileUtils.forceMkdir(getChunkDir());
 
             List<String> cmd = new ArrayList<>();
             cmd.add(lightMotion.getOpenRTSP().getAbsolutePath());
-            cmd.add("-v"); // store only video
+            cmd.add("-v"); // Stream only video
             cmd.add("-4"); // Store mp4
+            cmd.add("-p"); cmd.add(Integer.toString(cameraConfig.getRtspClientPort())); // Large buffer size
             cmd.add("-b"); cmd.add("500000"); // Large buffer size
             cmd.add("-f"); cmd.add(framerate.toString()); // Set framerate
             cmd.add("-w"); cmd.add(width.toString()); // Set width
-            cmd.add("-h"); cmd.add(height.toString()); // Set width
+            cmd.add("-h"); cmd.add(height.toString()); // Set height
             cmd.add("-F"); cmd.add(getChunkDir().getAbsolutePath()+"/"+timestamp); // The output directory + file prefix
             cmd.add("-P"); cmd.add(lightMotion.getConfig().getChunkLength().toString()); // Length of the chunks to record
             cmd.add(highresProfile.getStreamUrl());
@@ -249,6 +288,7 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
             killStreamer();
         }
     }
+
 
     /**
      * fetches a snapshot from the camera and stores it in the queue for the main thread to take care of

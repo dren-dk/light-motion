@@ -1,13 +1,13 @@
 package dk.dren.lightmotion.core.events;
 
-import dk.dren.lightmotion.core.CameraManager;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
  * An event that has happend in the system
  */
-@RequiredArgsConstructor
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
 public class LightMotionEvent {
     private final long timestamp = System.currentTimeMillis();
@@ -17,8 +17,12 @@ public class LightMotionEvent {
     private final String cameraName;
     private final String text;
 
-    public LightMotionEvent(LightMotionEventType type, boolean canceling, CameraManager cameraManager, String text) {
-        this(type, canceling, cameraManager.getCameraConfig().getName(), text);
+    public static LightMotionEvent start(LightMotionEventType type, String cameraName, String text) {
+        return new LightMotionEvent(type, false, cameraName, text);
+    }
+
+    public static LightMotionEvent end(LightMotionEventType type, String cameraName, String text) {
+        return new LightMotionEvent(type, true, cameraName, text);
     }
 
     @Override

@@ -17,7 +17,7 @@ import java.util.logging.Level;
  * The core class of the light motion system
  */
 @Log
-public class LightMotionEventSink implements Managed, dk.dren.lightmotion.core.events.LightMotionEventSink {
+public class LightMotion implements Managed, dk.dren.lightmotion.core.events.LightMotionEventSink {
     @Getter
     private LightMotionConfig config;
     private Thread motionThread;
@@ -25,8 +25,9 @@ public class LightMotionEventSink implements Managed, dk.dren.lightmotion.core.e
     private final Map<String, CameraManager> cameraManagers = new TreeMap<>();
     @Getter
     private final ArrayBlockingQueue<CameraSnapshot> snapshots;
+    private final int RTSP_CLIENT_PORT_BASE = 40000;
 
-    public LightMotionEventSink(LightMotionConfig config) throws IOException {
+    public LightMotion(LightMotionConfig config) throws IOException {
         this.config = config;
 
         mkdir(config.getRecordingRoot(), "recordingRoot");
@@ -36,14 +37,33 @@ public class LightMotionEventSink implements Managed, dk.dren.lightmotion.core.e
 
         extractOpenRTSP();
 
+        int clientPortCounter = RTSP_CLIENT_PORT_BASE;
+        Map<Integer, String> portsAllocated = new TreeMap<>();
         for (CameraConfig cameraConfig : config.getCameras()) {
+            Integer clientPort;
+            if (cameraConfig.getRtspClientPort() > 0) {
+                clientPort = cameraConfig.getRtspClientPort();
+                if ((clientPort & 1) != 0) {
+                    clientPort++;
+                    log.warning("The rtsp client port for "+cameraConfig.getName()+" is "+cameraConfig.getRtspClientPort()+", which is not even, using "+clientPort+" in stead.");
+                    cameraConfig.setRtspClientPort(clientPort);
+                }
+            } else {
+                while (portsAllocated.containsKey(clientPortCounter)) {
+                    clientPortCounter += 10;
+                }
+                clientPort = clientPortCounter;
+                log.info("Allocated port "+clientPort+" to "+cameraConfig.getName());
+                cameraConfig.setRtspClientPort(clientPort);
+            }
+            portsAllocated.put(clientPort, cameraConfig.getName());
             cameraManagers.put(cameraConfig.getAddress(), new CameraManager(this, cameraConfig));
         }
 
         snapshots = new ArrayBlockingQueue<>(cameraManagers.size()*2);
     }
 
-    private void mkdir(File dir, String name) {
+    public static void mkdir(File dir, String name) {
         try {
             FileUtils.forceMkdir(dir);
         } catch (IOException e) {
@@ -53,7 +73,7 @@ public class LightMotionEventSink implements Managed, dk.dren.lightmotion.core.e
 
     private void extractOpenRTSP() throws IOException {
         File fn = getOpenRTSP();
-        try (InputStream is = LightMotionEventSink.class.getResourceAsStream("/openRTSP");
+        try (InputStream is = LightMotion.class.getResourceAsStream("/openRTSP");
              OutputStream os = new FileOutputStream(fn)) {
             IOUtils.copy(is, os);
         }

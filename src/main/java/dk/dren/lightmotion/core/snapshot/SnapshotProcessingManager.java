@@ -89,7 +89,7 @@ public class SnapshotProcessingManager {
 
             } catch (Exception e) {
                 log.log(Level.SEVERE, "An exception was thrown while processing image from "+cameraName, e);
-                eventConsumer.notify(new LightMotionEvent(LightMotionEventType.FAILED_PROCESSOR, cameraName, "Exception while running "+processor.getClass().getSimpleName()+": "+e.toString()));
+                eventConsumer.notify(LightMotionEvent.start(LightMotionEventType.FAILED_PROCESSOR, cameraName, "Exception while running "+processor.getClass().getSimpleName()+": "+e.toString()));
             }
         }
     }

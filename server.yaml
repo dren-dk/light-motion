@@ -4,6 +4,12 @@ logging:
     - type: console
       threshold: ALL
       target: stderr
+    - type: file
+      currentLogFilename: server.log
+      threshold: ALL
+      archive: true
+      archivedLogFilenamePattern: server-%d.log
+      archivedFileCount: 5
 
 server:
   type: simple
@@ -14,23 +20,23 @@ server:
     port: 8080
 
 
-downstream:
+lightMotion:
   cameras:
     - name: Skur
       address: 10.0.2.90:8080
-      user: admin
-      password: test
-      storeSnapshots: true
+#      user: admin
+#      password: test
+     # storeSnapshots: true
 #    - name: Syd-Øst
 #      address: 10.0.2.91:8080
 #    - name: Syd-Vest
 #      address: 10.0.2.92:8080
     - name: Øst-Nord
       address: 10.0.2.93:8080
-      storeSnapshots: true
+     # storeSnapshots: true
     - name: Øst-Syd
       address: 10.0.2.94:8080
-      storeSnapshots: true
+     # storeSnapshots: true
 #    - name: Nord-Vest
 #      address: 10.0.2.95:8080
 #    - name: Nord-Øst

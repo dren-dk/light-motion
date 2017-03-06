@@ -1,14 +1,12 @@
 package dk.dren.lightmotion;
 
 import dk.dren.lightmotion.config.ServerConfiguration;
-import dk.dren.lightmotion.core.LightMotionEventSink;
+import dk.dren.lightmotion.core.LightMotion;
 import dk.dren.lightmotion.db.PhoneDB;
 import dk.dren.lightmotion.healthchecks.DiskSpaceCheck;
 import dk.dren.lightmotion.injectors.InjectorBinder;
-import dk.dren.lightmotion.resources.AngularTutorialResource;
 import dk.dren.lightmotion.resources.BabelResource;
 import dk.dren.lightmotion.resources.FrontPageResource;
-import dk.dren.lightmotion.resources.HelloResource;
 import io.dropwizard.Application;
 import io.dropwizard.assets.AssetsBundle;
 import io.dropwizard.forms.MultiPartBundle;
@@ -72,7 +70,7 @@ public class Server extends Application<ServerConfiguration>{
 	@Override
 	public void run(ServerConfiguration configuration, Environment environment) throws Exception {
 		// Register injectors.
-		LightMotionEventSink cameraManager = new LightMotionEventSink(configuration.getLightMotion());
+		LightMotion cameraManager = new LightMotion(configuration.getLightMotion());
 
 		environment.jersey().register(new InjectorBinder(configuration, new PhoneDB()));
 
@@ -80,9 +78,7 @@ public class Server extends Application<ServerConfiguration>{
 		environment.healthChecks().register("Disk-space", new DiskSpaceCheck());
 
 		// Register resources
-		environment.jersey().register(HelloResource.class);
 		environment.jersey().register(FrontPageResource.class);
-		environment.jersey().register(AngularTutorialResource.class);
 		environment.jersey().register(BabelResource.class);
 
 		environment.lifecycle().manage(cameraManager);
