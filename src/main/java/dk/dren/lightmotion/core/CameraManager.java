@@ -361,11 +361,11 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
 
             log.info("Running: "+String.join(" ", cmd));
             ProcessBuilder pb = new ProcessBuilder(cmd);
-            pb.redirectError(new File(lowresDir, "ffmpeg.log"));
-            pb.redirectOutput(new File("/dev/null"));
             pb.directory(lowresDir);
 
             lowresStreamProcess = pb.start();
+            StreamFifoLogger.glom(lowresStreamProcess.getErrorStream(), new File(lowresDir, "ffmpeg.err"));
+            StreamFifoLogger.glom(lowresStreamProcess.getInputStream(), new File(lowresDir, "ffmpeg.out"));
             lowresStreamProcessRunning = true;
             int err = -1;
             try {
