@@ -30,33 +30,11 @@ public class LightMotion implements Managed, dk.dren.lightmotion.core.events.Lig
     public LightMotion(LightMotionConfig config) throws IOException {
         this.config = config;
 
-        mkdir(config.getRecordingRoot(), "recordingRoot");
         mkdir(config.getWorkingRoot(), "workingRoot");
         mkdir(config.getStateRoot(), "stateRoot");
         mkdir(config.getChunkRoot(), "chunkRoot");
 
-        extractOpenRTSP();
-
-        int clientPortCounter = RTSP_CLIENT_PORT_BASE;
-        Map<Integer, String> portsAllocated = new TreeMap<>();
         for (CameraConfig cameraConfig : config.getCameras()) {
-            Integer clientPort;
-            if (cameraConfig.getRtspClientPort() > 0) {
-                clientPort = cameraConfig.getRtspClientPort();
-                if ((clientPort & 1) != 0) {
-                    clientPort++;
-                    log.warning("The rtsp client port for "+cameraConfig.getName()+" is "+cameraConfig.getRtspClientPort()+", which is not even, using "+clientPort+" in stead.");
-                    cameraConfig.setRtspClientPort(clientPort);
-                }
-            } else {
-                while (portsAllocated.containsKey(clientPortCounter)) {
-                    clientPortCounter += 10;
-                }
-                clientPort = clientPortCounter;
-                log.info("Allocated port "+clientPort+" to "+cameraConfig.getName());
-                cameraConfig.setRtspClientPort(clientPort);
-            }
-            portsAllocated.put(clientPort, cameraConfig.getName());
             cameraManagers.put(cameraConfig.getAddress(), new CameraManager(this, cameraConfig));
         }
 
@@ -69,19 +47,6 @@ public class LightMotion implements Managed, dk.dren.lightmotion.core.events.Lig
         } catch (IOException e) {
             throw new IllegalArgumentException("Failed to create the directory specified by "+name+"="+dir, e);
         }
-    }
-
-    private void extractOpenRTSP() throws IOException {
-        File fn = getOpenRTSP();
-        try (InputStream is = LightMotion.class.getResourceAsStream("/openRTSP");
-             OutputStream os = new FileOutputStream(fn)) {
-            IOUtils.copy(is, os);
-        }
-        fn.setExecutable(true);
-    }
-
-    File getOpenRTSP() {
-        return new File(config.getChunkRoot(), "openRTSP");
     }
 
     private void motionState(String s) {

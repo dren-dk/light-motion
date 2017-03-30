@@ -26,16 +26,14 @@ public class SnapshotProcessingManagerTest {
         FileUtils.forceMkdir(workingDir);
         File state = new File(workingDir, "state");
         File pre = new File(workingDir, "pr");
-        File rec = new File(workingDir, "rec");
         FileUtils.forceMkdir(state);
         FileUtils.forceMkdir(pre);
-        FileUtils.forceMkdir(rec);
         try (InputStream is = SnapshotProcessingManager.class.getResourceAsStream("/clock-mask.png");
              OutputStream os = new FileOutputStream(new File(state,"movement-mask.png"))) {
             IOUtils.copy(is, os);
         }
 
-        SnapshotProcessingManager spm = new SnapshotProcessingManager("test", workingDir, state, pre, rec, false, loggingEventConsumer);
+        SnapshotProcessingManager spm = new SnapshotProcessingManager("test", workingDir, state, pre, false, loggingEventConsumer);
 
         String zipName = "cam3-night-rain";
 

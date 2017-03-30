@@ -44,9 +44,6 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
     private ONVIFCamera onvif;
     private boolean keepRunning = true;
     private String error;
-    private Integer framerate;
-    private Integer width;
-    private Integer height;
     private Process streamProcess;
     private boolean streamProcessRunning;
     private boolean streamProcessKilling;
@@ -57,7 +54,6 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
     private boolean lowresStreamProcessRunning;
     private boolean lowresStreamProcessKilling;
     private Thread lowresSnapshotThread;
-    private MovieMaker movieMaker;
 
     void start() {
 
@@ -65,10 +61,8 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
             try {
                 LightMotion.mkdir(getChunkDir(), "camera-chunks");
                 LightMotion.mkdir(getStateDir(), "camera-state");
-                LightMotion.mkdir(getRecordingDir(), "camera-recording");
                 LightMotion.mkdir(getWorkingDir(), "camera-working");
 
-                movieMaker = new MovieMaker(this);
                 snapshotProcessingManager = new SnapshotProcessingManager(this);
                 interrogateOnvif();
                 startStreamThread();
@@ -100,34 +94,6 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
 
         highresProfile = onvif.getProfiles().get(cameraConfig.getProfileNumber());
         lowresProfile = onvif.getProfiles().get(cameraConfig.getLowresProfileNumber());
-
-        framerate = cameraConfig.getForceFramerate() != null
-                ? cameraConfig.getForceFramerate()
-                : highresProfile.getFramerate();
-
-        if (framerate == null) {
-            error = "Neither ONVIF nor YAML has a framerate for "+cameraConfig.getName()+" add forceFramerate=... to the camera section in the YAML file";
-            log.severe(error);
-            throw new RuntimeException(error);
-        }
-
-        width = cameraConfig.getForceWidth() != null
-                ? cameraConfig.getForceWidth()
-                : highresProfile.getWidth();
-        if (width == null) {
-            error = "Neither ONVIF nor YAML has a width for "+cameraConfig.getName()+" add forceWidth=... to the camera section in the YAML file";
-            log.severe(error);
-            throw new RuntimeException(error);
-        }
-
-        height = cameraConfig.getForceHeight() != null
-                ? cameraConfig.getForceHeight()
-                : highresProfile.getHeight();
-        if (height == null) {
-            error = "Neither ONVIF nor YAML has a height for "+cameraConfig.getName()+" add forceHeight=... to the camera section in the YAML file";
-            log.severe(error);
-            throw new RuntimeException(error);
-        }
     }
 
 
@@ -163,10 +129,6 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
 
     public File getWorkingDir() {
         return new File(lightMotion.getConfig().getWorkingRoot(), cameraConfig.getName());
-    }
-
-    public File getRecordingDir() {
-        return new File(lightMotion.getConfig().getRecordingRoot(), cameraConfig.getName());
     }
 
     public File getStateDir() {
@@ -212,12 +174,18 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
         while (keepRunning) {
             String timestamp = getTimeStamp();
 
-            ProcessBuilder pb = new ProcessBuilder("ffmpeg",
-                    "-i", highresProfile.getStreamUrl(), "-map", "0",
-                    "-probesize", "32",
-                    "-f", "segment", "-segment_time", lightMotion.getConfig().getChunkLength().toString(), "-segment_atclocktime", "1", "-segment_format", "mp4",
-                    "-vcodec", "copy", "-an",
-                    timestamp+"-%010d.mp4");
+            ProcessBuilder pb = new ProcessBuilder(lightMotion.getFfmpeg().getAbsolutePath(),
+                    "-i", highresProfile.getStreamUrl(), "-map", "0", "-probesize", "32",
+
+                    "-vcodec", "copy", // Copy video without any re-encoding
+                    "-an", // Drop audio
+                    "-f", "segment",
+                    "-segment_time", lightMotion.getConfig().getChunkLength().toString(),
+                    "-segment_atclocktime", "1",
+                    "-segment_format", "mp4",
+                    "-strftime", "1",
+                    "%Y-%m-%d_%H-%M-%S.mp4"
+            );
             pb.directory(getChunkDir());
 
             log.info("Running: "+String.join(" ", pb.command()));
@@ -242,53 +210,6 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
             killStreamer();
         }
     }
-
-    private void openRTSPstreamer() throws IOException, InterruptedException {
-
-        while (keepRunning) {
-            //  ffmpeg -i rtsp://10.0.2.97:554/11 -map 0 -f segment -segment_time 60 -segment_atclocktime 1 -segment_format mp4 -vcodec copy -an "capture-%010d.mp4"
-
-            String timestamp = getTimeStamp();
-
-            List<String> cmd = new ArrayList<>();
-            cmd.add(lightMotion.getOpenRTSP().getAbsolutePath());
-            cmd.add("-v"); // Stream only video
-            cmd.add("-4"); // Store mp4
-            cmd.add("-p"); cmd.add(Integer.toString(cameraConfig.getRtspClientPort())); // Large buffer size
-            cmd.add("-b"); cmd.add("500000"); // Large buffer size
-            cmd.add("-f"); cmd.add(framerate.toString()); // Set framerate
-            cmd.add("-w"); cmd.add(width.toString()); // Set width
-            cmd.add("-h"); cmd.add(height.toString()); // Set height
-            cmd.add("-F"); cmd.add(getChunkDir().getAbsolutePath()+"/"+timestamp); // The output directory + file prefix
-            cmd.add("-P"); cmd.add(lightMotion.getConfig().getChunkLength().toString()); // Length of the chunks to record
-            cmd.add(highresProfile.getStreamUrl());
-
-            log.info("Running: "+String.join(" ", cmd));
-            ProcessBuilder pb = new ProcessBuilder(cmd);
-            pb.redirectError(new File(getChunkDir(), "openrtsp.log"));
-            pb.redirectOutput(new File("/dev/null"));
-            pb.directory(getChunkDir());
-
-            streamProcess = pb.start();
-            streamProcessRunning = true;
-            int err = -1;
-            try {
-                err = streamProcess.waitFor();
-                log.info("Exit code from openRTSP was: "+err);
-            } finally {
-                streamProcessRunning = false;
-                streamProcessKilling = false;
-            }
-            if (err != 0) {
-                Thread.sleep(1000); // Don't burn all the CPU in case of an error.
-            }
-        }
-
-        if (streamProcessRunning) {
-            killStreamer();
-        }
-    }
-
 
     /**
      * fetches a snapshot from the camera and stores it in the queue for the main thread to take care of
@@ -349,15 +270,22 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
             // ffmpeg -probesize 32 -i rtsp://10.0.2.93:554/12 -r 1/1 -f image2 frame%04d.pnm
             List<String> cmd = new ArrayList<>();
             cmd.add(lightMotion.getFfmpeg().getAbsolutePath());
-            cmd.add("-probesize");
-            cmd.add("32");
-            cmd.add("-i");
-            cmd.add(lowresProfile.getStreamUrl());
-            cmd.add("-r");
-            cmd.add("1/1");
-            cmd.add("-f");
-            cmd.add("image2");
-            cmd.add("frame%04d.ppm");
+            cmd.add("-i"); cmd.add(lowresProfile.getStreamUrl());
+            cmd.add("-probesize"); cmd.add("32");
+            cmd.add("-r"); cmd.add("1/1");
+            cmd.add("-f"); cmd.add("image2");
+            cmd.add("frame-%04d.ppm");
+
+            /*
+            cmd.add("-vcodec"); cmd.add("copy"); // Copy video without any re-encoding
+            cmd.add("-an"); // Drop audio
+            cmd.add("-f"); cmd.add("segment");
+            cmd.add("-segment_time"); cmd.add(lightMotion.getConfig().getChunkLength().toString());
+            cmd.add("-segment_atclocktime"); cmd.add("1");
+            cmd.add("-segment_format"); cmd.add("mp4");
+            cmd.add("-strftime"); cmd.add("1");
+            cmd.add("%Y-%m-%d_%H-%M-%S.mp4");
+            */
 
             log.info("Running: "+String.join(" ", cmd));
             ProcessBuilder pb = new ProcessBuilder(cmd);
@@ -408,6 +336,6 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
     @Override
     public void notify(LightMotionEvent event) {
         lightMotion.notify(event);
-        movieMaker.notify(event);
+        //TODO: Notify the event log
     }
 }

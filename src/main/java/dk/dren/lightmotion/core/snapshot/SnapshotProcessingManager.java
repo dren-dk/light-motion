@@ -29,21 +29,18 @@ public class SnapshotProcessingManager {
     @Getter
     private final File preRecordDir;
     @Getter
-    private final File recordingDir;
-    @Getter
     private final LightMotionEventSink eventConsumer;
     @Getter
     private final String cameraName;
     @Getter
     private final File workingDir;
 
-    public SnapshotProcessingManager(String cameraName, File workingDir, File stateDir, File preRecordDir, File recordingDir, boolean storeSnapshots, LightMotionEventSink eventConsumer) {
+    public SnapshotProcessingManager(String cameraName, File workingDir, File stateDir, File preRecordDir, boolean storeSnapshots, LightMotionEventSink eventConsumer) {
         this.cameraName = cameraName;
         this.workingDir = workingDir;
         snapshotsDir = storeSnapshots ? new File(preRecordDir, "snapshots") : null;
         this.stateDir = stateDir;
         this.preRecordDir = preRecordDir;
-        this.recordingDir = recordingDir;
         this.eventConsumer = eventConsumer;
         try {
             FileUtils.forceMkdir(workingDir);
@@ -59,7 +56,7 @@ public class SnapshotProcessingManager {
     }
 
     public SnapshotProcessingManager(CameraManager cm) {
-        this(cm.getCameraConfig().getName(), cm.getWorkingDir(), cm.getStateDir(), cm.getChunkDir(), cm.getRecordingDir(), cm.getCameraConfig().getStoreSnapshots(), cm);
+        this(cm.getCameraConfig().getName(), cm.getWorkingDir(), cm.getStateDir(), cm.getChunkDir(), cm.getCameraConfig().getStoreSnapshots(), cm);
     }
 
     public void processSnapshot(String name, byte[] imageBytes) throws IOException {

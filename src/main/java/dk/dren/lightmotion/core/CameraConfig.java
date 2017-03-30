@@ -55,33 +55,6 @@ public class CameraConfig {
     @JsonProperty
     private boolean lowresSnapshot = false;
 
-    /**
-     * The framerate of the stream, set only if the camera lies in the ONVIF response
-     */
-    @JsonProperty
-    private Integer forceFramerate;
-
-    /**
-     * The width of the image in the stream, set only if the camera lies in the ONVIF response
-     */
-    @JsonProperty
-    private Integer forceWidth;
-
-    /**
-     * The height of the image in the stream, set only if the camera lies in the ONVIF response
-     */
-    @JsonProperty
-    private Integer forceHeight;
-
     @JsonProperty
     private Boolean storeSnapshots = false;
-
-    /**
-     * The port number to use for streaming RTSP from this camera, it must be even
-     * The ports from port to port+3 are used, so if you allocate manually space them 4 apart
-     *
-     * Default is 0 which causes lightmotion to allocate ports automatically
-     */
-    @JsonProperty
-    private Integer rtspClientPort = 0;
 }

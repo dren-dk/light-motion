@@ -18,7 +18,7 @@ import java.util.logging.Level;
 @Log
 public class StreamFifoLogger {
     private static final int DEFAULT_INTERVAL = 30000;
-    private static final int DEFAULT_HISTORY = 50;
+    private static final int DEFAULT_HISTORY = 150;
     private final InputStream stream;
     private final File file;
     private final int interval;
@@ -60,12 +60,19 @@ public class StreamFifoLogger {
 
     private void writeFile() throws FileNotFoundException {
         synchronized (file) {
-            try (PrintStream ps = new PrintStream(new FileOutputStream(file))) {
-                for (String line : fifo) {
-                    ps.println(line);
+            try {
+                if (fifo.isEmpty() && file.exists()) {
+                    file.delete(); // We don't care about empty files, at all.
+                } else {
+                    try (PrintStream ps = new PrintStream(new FileOutputStream(file))) {
+                        for (String line : fifo) {
+                            ps.println(line);
+                        }
+                    }
                 }
+            } finally {
+                nextWrite = System.currentTimeMillis() + interval;
             }
-            nextWrite = System.currentTimeMillis() + interval;
         }
     }
 

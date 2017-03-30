@@ -21,7 +21,8 @@ public class LightMotionConfig {
     private List<CameraConfig> cameras;
 
     /**
-     * The minimum interval between polling of jpeg snapshots from each camera in milliseconds.
+     * The minimum interval between polling of jpeg snapshots from each camera in milliseconds, this is not used if
+     * lowres streaming is used.
      */
     @JsonProperty
     private Integer pollInterval = 2000;
@@ -46,7 +47,7 @@ public class LightMotionConfig {
     /**
      * The directory where the recordings are written before motion is detected.
      *
-     * 12 MB per minute per camera is written here.
+     * 60 MB per minute per camera is written here.
      *
      * Default is to use ${HOME}/.light-motion/pre-record
      */
@@ -54,21 +55,12 @@ public class LightMotionConfig {
     private File chunkRoot = new File(System.getProperty("user.home"), ".light-motion/chunks");
 
     /**
-     * The directory where the recordings are written when motion is detected.
-     *
-     * Default is to use ${HOME}/.light-motion/recordings
-     */
-    @JsonProperty
-    private File recordingRoot = new File(System.getProperty("user.home"), ".light-motion/recording");
-
-
-    /**
-     * The number of seconds to record in each chunk, default is 60 seconds.
+     * The number of seconds to record in each chunk, default is 10 seconds.
      *
      * The minimum recording size will be chunkLength*(chunksBeforeDetection+chunksAfterDetection) seconds long
      */
     @JsonProperty
-    private final Integer chunkLength = 60;
+    private final Integer chunkLength = 10;
 
     /**
      * The number of chunks to keep before movement was detected
@@ -85,5 +77,13 @@ public class LightMotionConfig {
      */
     @JsonProperty
     private final Integer chunksAfterDetection = 2;
+
+    /**
+     * Number of chunks to keep, regardless of detection.
+     *
+     * With the default chunk length of 10 seconds, 24 hours worth of chunks are kept.
+     */
+    @JsonProperty
+    private final Integer chunkRetention = 6*60*24;
 
 }

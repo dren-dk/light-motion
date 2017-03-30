@@ -27,7 +27,6 @@ import java.util.stream.Collectors;
 public class MovieMaker implements dk.dren.lightmotion.core.events.LightMotionEventSink {
     private final String name;
     private final File chunkDir;
-    private final File recordingDir;
     private final Integer chunkLength;
     private final Integer chunksBeforeDetection;
     private final Integer chunksAfterDetection;
@@ -43,11 +42,11 @@ public class MovieMaker implements dk.dren.lightmotion.core.events.LightMotionEv
     private Set<LightMotionEventType> activeEvents = new TreeSet<>();
     private SortedDir sortedChunks;
     private long lastTailLogMessage = 0;
+    File recordingDir;
 
     public MovieMaker(CameraManager cameraManager) throws IOException {
         this(   cameraManager.getCameraConfig().getName(),
                 cameraManager.getChunkDir(),
-                cameraManager.getRecordingDir(),
                 cameraManager.getLightMotion().getConfig().getChunkLength(),
                 cameraManager.getLightMotion().getConfig().getChunksBeforeDetection(),
                 cameraManager.getLightMotion().getConfig().getChunksAfterDetection(),
@@ -55,10 +54,9 @@ public class MovieMaker implements dk.dren.lightmotion.core.events.LightMotionEv
                 );
     }
 
-    public MovieMaker(String name, File chunkDir, File recordingDir, Integer chunkLength, Integer chunksBeforeDetection, Integer chunksAfterDetection, LightMotion downstream) throws IOException {
+    public MovieMaker(String name, File chunkDir, Integer chunkLength, Integer chunksBeforeDetection, Integer chunksAfterDetection, LightMotion downstream) throws IOException {
         this.name = name;
         this.chunkDir = chunkDir;
-        this.recordingDir = recordingDir;
         this.chunkLength = chunkLength;
         this.chunksBeforeDetection = chunksBeforeDetection;
         this.chunksAfterDetection = chunksAfterDetection;

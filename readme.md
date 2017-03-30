@@ -2,20 +2,24 @@ Light Motion
 ============
 
 This is a very light weight motion detection system for cheap chinese IP cameras with the following two key features:
-* Streaming of h.264 over RTSP
-* Low resolution snapshots as jpeg via http
+* Streaming of full-resolution (25 fps 1080p) video as h.264 over RTSP
+* Streaming of low-resolution (1 fps/ 640x352) video as h.264 over RTSP
+
+It seems most, if not all of the currently available cameras have the ability to handle a high-res and a low-res stream.
 
 The goal is to be able to do motion detection and full-framerate recording from at least 10
-cameras on an aging Atom.
+cameras on an aging Atom, with a nice HTML based UI, so no client software needs to be developed or installed.
 
 The h.264 stream is normally stored on disk in a circular buffer in small increments without any processing at all.
 
-The low resolution snapshots are used to do motion detection with a few seconds of latency at the speed the CPU can
-handle, so graceful degradation is possible.
+The low resolution stream is turned into ppm snapshots which are used to do motion detection with a few seconds of
+ atency at the speed the CPU can handle, so graceful degradation is possible.
+ 
+If the CPU is unable to handle its motion detection duties at the speed the images come in, they are dropped from the queue. 
 
-The alternative to using the jpeg snapshots would be to stream one of the secondary
-low-resolution / low-framerate h.264 streams from the camera, but decoding a fixed
-framerate h.264 stream at 1-5 fps is much heavier than doing jpeg decoding at fractional fps.
+If the CPU is wimpy enough to not be able to decode 1 fps low-res video from the needed number of cameras, then
+an alternative low-res mode to fetch jpeg snapshots from the cameras, this costs more CPU per frame but allows
+arbitrarily low FPS.
 
 
 Building And Running
@@ -52,3 +56,17 @@ Bottom line:
 
 Make sure that all the ddns/p2p "features" are turned off and firewall the cameras
 from the Internet, user-accessible LAN and each other.
+
+
+Dependencies
+------------
+
+* **ffmpeg**: Light motion doesn't touch the RTSP streams directly, in stead it relies on the excellent ffmpeg tool.
+
+If you're running ubuntu server, then run:
+```
+   sudo apt-get install ffmpeg
+```
+
+   
+   
