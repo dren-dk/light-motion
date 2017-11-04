@@ -1,8 +1,8 @@
 package dk.dren.lightmotion;
 
-import com.google.common.base.Preconditions;
 import dk.dren.lightmotion.config.ServerConfiguration;
 import dk.dren.lightmotion.core.LightMotion;
+import dk.dren.lightmotion.db.Database;
 import dk.dren.lightmotion.healthchecks.DiskSpaceCheck;
 import dk.dren.lightmotion.injectors.InjectorBinder;
 import dk.dren.lightmotion.resources.BabelResource;
@@ -81,11 +81,12 @@ public class Server extends Application<ServerConfiguration>{
 
         final DBIFactory factory = new DBIFactory();
         final DBI jdbi = factory.build(environment, configuration.getLightMotion().getDatabase(), "postgresql");
+        Database database = jdbi.onDemand(Database.class);
 
-		// Register injectors.
-		LightMotion cameraManager = new LightMotion(configuration.getLightMotion());
+        // Register injectors.
+		LightMotion cameraManager = new LightMotion(database, configuration.getLightMotion());
 
-		environment.jersey().register(new InjectorBinder(configuration));
+		environment.jersey().register(new InjectorBinder(configuration, jdbi, database));
 
 		// Register healthchecks, there really should be many more than just one.
 		environment.healthChecks().register("Disk-space", new DiskSpaceCheck());

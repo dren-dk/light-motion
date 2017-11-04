@@ -1,7 +1,8 @@
 package dk.dren.lightmotion.core.snapshot;
 
 import dk.dren.lightmotion.core.CameraManager;
-import dk.dren.lightmotion.core.events.LightMotionEvent;
+import dk.dren.lightmotion.db.entity.Camera;
+import dk.dren.lightmotion.db.entity.Event;
 import dk.dren.lightmotion.core.events.LightMotionEventSink;
 import dk.dren.lightmotion.core.events.LightMotionEventType;
 import lombok.Getter;
@@ -25,18 +26,18 @@ public class SnapshotProcessingManager {
     @Getter
     private final File snapshotsDir;
     @Getter
+    private final Camera camera;
+    @Getter
     private File stateDir;
     @Getter
     private final File preRecordDir;
     @Getter
     private final LightMotionEventSink eventConsumer;
     @Getter
-    private final String cameraName;
-    @Getter
     private final File workingDir;
 
-    public SnapshotProcessingManager(String cameraName, File workingDir, File stateDir, File preRecordDir, boolean storeSnapshots, LightMotionEventSink eventConsumer) {
-        this.cameraName = cameraName;
+    public SnapshotProcessingManager(Camera camera, File workingDir, File stateDir, File preRecordDir, boolean storeSnapshots, LightMotionEventSink eventConsumer) {
+        this.camera = camera;
         this.workingDir = workingDir;
         snapshotsDir = storeSnapshots ? new File(preRecordDir, "snapshots") : null;
         this.stateDir = stateDir;
@@ -48,7 +49,7 @@ public class SnapshotProcessingManager {
                 FileUtils.forceMkdir(snapshotsDir);
             }
         } catch (IOException e) {
-            throw new RuntimeException("Failed to create dir for "+cameraName, e);
+            throw new RuntimeException("Failed to create dir for "+camera.getName(), e);
         }
 
         processors = new ArrayList<>();
@@ -56,7 +57,7 @@ public class SnapshotProcessingManager {
     }
 
     public SnapshotProcessingManager(CameraManager cm) {
-        this(cm.getCameraConfig().getName(), cm.getWorkingDir(), cm.getStateDir(), cm.getChunkDir(), cm.getCameraConfig().getStoreSnapshots(), cm);
+        this(cm.getCamera(), cm.getWorkingDir(), cm.getStateDir(), cm.getChunkDir(), cm.getCamera().isLowResSnapshot(), cm);
     }
 
     public void processSnapshot(String name, byte[] imageBytes) throws IOException {
@@ -79,14 +80,14 @@ public class SnapshotProcessingManager {
 
         for (SnapshotProcessor processor : processors) {
             try {
-                LightMotionEvent event = processor.process(fixed);
+                Event event = processor.process(fixed);
                 if (event != null) {
                     eventConsumer.notify(event);
                 }
 
             } catch (Exception e) {
-                log.log(Level.SEVERE, "An exception was thrown while processing image from "+cameraName, e);
-                eventConsumer.notify(LightMotionEvent.start(LightMotionEventType.FAILED_PROCESSOR, cameraName, "Exception while running "+processor.getClass().getSimpleName()+": "+e.toString()));
+                log.log(Level.SEVERE, "An exception was thrown while processing image from "+camera.getName(), e);
+                eventConsumer.notify(Event.start(LightMotionEventType.FAILED_PROCESSOR, camera, "Exception while running "+processor.getClass().getSimpleName()+": "+e.toString()));
             }
         }
     }

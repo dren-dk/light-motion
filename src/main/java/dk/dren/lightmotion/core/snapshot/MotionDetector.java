@@ -1,10 +1,9 @@
 package dk.dren.lightmotion.core.snapshot;
 
-import dk.dren.lightmotion.core.events.LightMotionEvent;
+import dk.dren.lightmotion.db.entity.Event;
 import dk.dren.lightmotion.core.events.LightMotionEventType;
 import lombok.extern.java.Log;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -55,7 +54,7 @@ public class MotionDetector implements SnapshotProcessor {
         try {
             raw = ImageIO.read(maskFile);
         } catch (IOException e) {
-            log.log(Level.SEVERE, "Failed to load mask for "+manager.getCameraName()+" from "+maskFile, e);
+            log.log(Level.SEVERE, "Failed to load mask for "+manager.getCamera().getName()+" from "+maskFile, e);
         }
 
         BufferedImage bi = new BufferedImage(snapshot.getWidth(), snapshot.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
@@ -154,14 +153,14 @@ public class MotionDetector implements SnapshotProcessor {
 
 
     @Override
-    public LightMotionEvent process(FixedPointPixels image) {
+    public Event process(FixedPointPixels image) {
         FixedPointPixels blocky = image.scale(8);
 
         int imagePixelCount = blocky.getWidth() * blocky.getHeight();
         log.fine("Got image: "+blocky.getWidth()+"x"+blocky.getHeight()+" pixels: "+imagePixelCount+" sub-pixels: "+blocky.getPixels().length);
 
         if (average == null || average.getPixels().length != blocky.getPixels().length)  {
-            average = blocky.clone(manager.getCameraName()+"-average");
+            average = blocky.clone(manager.getCamera().getName()+"-average");
 
         } else {
 
@@ -171,12 +170,12 @@ public class MotionDetector implements SnapshotProcessor {
             FixedPointPixels diff = motionDetect(average, blocky, mask, 4, blocky.getWidth()/2, blocky.getHeight()/2);
             long t1 = System.nanoTime();
             if (noise == null) {
-                noise = diff.clone(manager.getCameraName()+"-noise");
+                noise = diff.clone(manager.getCamera()+"-noise");
             }
             updateAverageAndSubtract(noise, diff, 4);
 
 
-            log.fine(manager.getCameraName()+": diff time: "+(t1-t0));
+            log.fine(manager.getCamera()+": diff time: "+(t1-t0));
 
             storeState();
 
@@ -189,11 +188,11 @@ public class MotionDetector implements SnapshotProcessor {
                 log.fine("Detected motion at "+detected.getMaxDiffX()+","+detected.getMaxDiffY()+ " = "+detected.getMaxDiff());
                 quiet = false;
                 quietCount = 0;
-                return LightMotionEvent.start(LightMotionEventType.MOTION, manager.getCameraName(), "Detected motion ("+detected.getMaxDiff()+")");
+                return Event.start(LightMotionEventType.MOTION, manager.getCamera(), "Detected motion ("+detected.getMaxDiff()+")");
             } else {
                 if (!quiet && quietCount++ > 10) {
                     quiet = true;
-                    return LightMotionEvent.end(LightMotionEventType.MOTION, manager.getCameraName(), "No motion detected");
+                    return Event.end(LightMotionEventType.MOTION, manager.getCamera(), "No motion detected");
                 }
             }
         }

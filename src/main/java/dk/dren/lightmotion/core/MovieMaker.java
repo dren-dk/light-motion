@@ -1,6 +1,8 @@
 package dk.dren.lightmotion.core;
 
-import dk.dren.lightmotion.core.events.LightMotionEvent;
+import dk.dren.lightmotion.core.events.LightMotionEventSink;
+import dk.dren.lightmotion.db.entity.Camera;
+import dk.dren.lightmotion.db.entity.Event;
 import dk.dren.lightmotion.core.events.LightMotionEventType;
 import lombok.extern.java.Log;
 import org.apache.commons.io.FileUtils;
@@ -24,15 +26,15 @@ import java.util.stream.Collectors;
  * * Preserves pre-recordings while there's movement and concatenates the snippets to one large movie after the movement has ended.
  */
 @Log
-public class MovieMaker implements dk.dren.lightmotion.core.events.LightMotionEventSink {
-    private final String name;
+public class MovieMaker implements LightMotionEventSink {
+    private final Camera camera;
     private final File chunkDir;
     private final Integer chunkLength;
     private final Integer chunksBeforeDetection;
     private final Integer chunksAfterDetection;
     private final LightMotion downstream;
     private final Thread workerThread;
-    private final ArrayBlockingQueue<LightMotionEvent> events = new ArrayBlockingQueue<LightMotionEvent>(20);
+    private final ArrayBlockingQueue<Event> events = new ArrayBlockingQueue<Event>(20);
     private final int quietTailLength;
 
     private boolean keepRunning = true;
@@ -45,7 +47,7 @@ public class MovieMaker implements dk.dren.lightmotion.core.events.LightMotionEv
     File recordingDir;
 
     public MovieMaker(CameraManager cameraManager) throws IOException {
-        this(   cameraManager.getCameraConfig().getName(),
+        this(   cameraManager.getCamera(),
                 cameraManager.getChunkDir(),
                 cameraManager.getLightMotion().getConfig().getChunkLength(),
                 cameraManager.getLightMotion().getConfig().getChunksBeforeDetection(),
@@ -54,8 +56,8 @@ public class MovieMaker implements dk.dren.lightmotion.core.events.LightMotionEv
                 );
     }
 
-    public MovieMaker(String name, File chunkDir, Integer chunkLength, Integer chunksBeforeDetection, Integer chunksAfterDetection, LightMotion downstream) throws IOException {
-        this.name = name;
+    public MovieMaker(Camera camera, File chunkDir, Integer chunkLength, Integer chunksBeforeDetection, Integer chunksAfterDetection, LightMotion downstream) throws IOException {
+        this.camera = camera;
         this.chunkDir = chunkDir;
         this.chunkLength = chunkLength;
         this.chunksBeforeDetection = chunksBeforeDetection;
@@ -84,7 +86,7 @@ public class MovieMaker implements dk.dren.lightmotion.core.events.LightMotionEv
     }
 
     @Override
-    public void notify(LightMotionEvent event) {
+    public void notify(Event event) {
         events.add(event); // Just add the events to the queue, so we don't block the sender
     }
 
@@ -98,9 +100,9 @@ public class MovieMaker implements dk.dren.lightmotion.core.events.LightMotionEv
             if (System.currentTimeMillis()-lastTailLogMessage > 30000) {
                 lastTailLogMessage=System.currentTimeMillis();
                 if (activeEvents.isEmpty()) {
-                    log.info(name + ": Still recording tail " + quietTailDuration);
+                    log.info(camera.getName() + ": Still recording tail " + quietTailDuration);
                 } else {
-                    log.info(name + ": Still recording events active: " + getActiveEventsAsString());
+                    log.info(camera.getName() + ": Still recording events active: " + getActiveEventsAsString());
                 }
             }
 
@@ -120,19 +122,19 @@ public class MovieMaker implements dk.dren.lightmotion.core.events.LightMotionEv
 
     private void processEvents(boolean block) throws InterruptedException {
         do {
-            LightMotionEvent event = block ? events.take() : events.poll();
+            Event event = block ? events.take() : events.poll();
             if (event == null) {
                 return;
             }
-            log.fine(name+": Got event: "+event);
+            log.fine(camera.getName()+": Got event: "+event);
 
             if (event.isCanceling()) {
-                log.info(name+": Removing event from active events: "+event.getType());
+                log.info(camera.getName()+": Removing event from active events: "+event.getType());
                 activeEvents.remove(event.getType());
 
                 if (activeEvents.isEmpty()) {
-                    log.info(name+": Entering quiet time");
-                    quietPeriodStart = event.getTimestamp();
+                    log.info(camera.getName()+": Entering quiet time");
+                    quietPeriodStart = event.getTimestamp().getTime();
                 }
             } else {
                 if (event.getType().isDetection()) {
@@ -140,7 +142,7 @@ public class MovieMaker implements dk.dren.lightmotion.core.events.LightMotionEv
                     recording = true;
                     recordingStart = System.currentTimeMillis();
                     if (!recording) {
-                        downstream.notify(LightMotionEvent.start(LightMotionEventType.RECORDING, name, "Started recording"));
+                        downstream.notify(Event.start(LightMotionEventType.RECORDING, camera, "Started recording"));
                     }
                 }
             }
@@ -169,8 +171,8 @@ public class MovieMaker implements dk.dren.lightmotion.core.events.LightMotionEv
     private void stopRecording() throws IOException, InterruptedException {
         // Simply append all existing chunks to the output file, except for the newest one that is probably not complete yet.
         String timestamp = getTimestamp(recordingStart);
-        File outputFile = new File(recordingDir, name+"-"+ timestamp +".mp4");
-        log.info(name+": Finishing recording "+outputFile);
+        File outputFile = new File(recordingDir, camera.getName()+"-"+ timestamp +".mp4");
+        log.info(camera.getName()+": Finishing recording "+outputFile);
         List<File> chunks = sortedChunks.list();
         chunks.remove(chunks.size()-1);
 
@@ -180,7 +182,7 @@ public class MovieMaker implements dk.dren.lightmotion.core.events.LightMotionEv
         chunks.forEach(File::delete);
 
         // Send an event that this has happened
-        downstream.notify(LightMotionEvent.end(LightMotionEventType.RECORDING, name, "Recorded "+outputFile.getName()));
+        downstream.notify(Event.end(LightMotionEventType.RECORDING, camera, "Recorded "+outputFile.getName()));
     }
 
     private void concatenateChunks(List<File> chunks, File outputFile) throws IOException, InterruptedException {

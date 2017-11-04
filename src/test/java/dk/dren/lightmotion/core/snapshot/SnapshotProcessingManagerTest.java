@@ -1,5 +1,6 @@
 package dk.dren.lightmotion.core.snapshot;
 
+import dk.dren.lightmotion.db.entity.Camera;
 import lombok.extern.java.Log;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -33,7 +34,8 @@ public class SnapshotProcessingManagerTest {
             IOUtils.copy(is, os);
         }
 
-        SnapshotProcessingManager spm = new SnapshotProcessingManager("test", workingDir, state, pre, false, loggingEventConsumer);
+        Camera camera = new Camera(null, null, "test", null, null, null, 0,0, false);
+        SnapshotProcessingManager spm = new SnapshotProcessingManager(camera, workingDir, state, pre, false, loggingEventConsumer);
 
         String zipName = "cam3-night-rain";
 

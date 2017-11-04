@@ -1,6 +1,8 @@
 package dk.dren.lightmotion.core;
 
-import dk.dren.lightmotion.core.events.LightMotionEvent;
+import dk.dren.lightmotion.core.events.LightMotionEventSink;
+import dk.dren.lightmotion.db.entity.Camera;
+import dk.dren.lightmotion.db.entity.Event;
 import dk.dren.lightmotion.core.snapshot.SnapshotProcessingManager;
 import dk.dren.lightmotion.onvif.ONVIFCamera;
 import dk.dren.lightmotion.onvif.ONVIFProfile;
@@ -28,7 +30,8 @@ import java.util.logging.Level;
 
 /**
  * Read a camera, this means two things:
- * 1: Run a thread that periodically polls the snapshot url to get a snapshot, which is then fed into the snapshot queue.
+ * 1a: Run a thread that starts the external lowres streamer process and waits for it to quit and if it does, then restarts it.
+ * 1b: Run a thread that periodically polls the snapshot url to get a snapshot, which is then fed into the snapshot queue.
  * 2: Run a thread that starts the external streamer process and waits for it to quit and if it does, then restarts it.
  *
  * TODO: Split out the 3 threads that manage external processes, so this class gets smaller.
@@ -36,9 +39,9 @@ import java.util.logging.Level;
 @Log
 @RequiredArgsConstructor
 @Getter
-public class CameraManager implements dk.dren.lightmotion.core.events.LightMotionEventSink {
+public class CameraManager implements LightMotionEventSink {
     private final LightMotion lightMotion;
-    private final CameraConfig cameraConfig;
+    private final Camera camera;
     private Thread snapshotThread;
     private Thread streamThread;
     private ONVIFCamera onvif;
@@ -66,19 +69,19 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
                 snapshotProcessingManager = new SnapshotProcessingManager(this);
                 interrogateOnvif();
                 startStreamThread();
-                if (cameraConfig.isLowresSnapshot()) {
+                if (camera.isLowResSnapshot()) {
                     lowresHttpJpegSnapshots();
                 } else {
                     lowresStreamSnapshots();
                 }
             } catch (Throwable e) {
                 if (keepRunning) {
-                    log.log(Level.SEVERE, "Failed in the snapshot thread for " + cameraConfig.getName() + ": ", e);
+                    log.log(Level.SEVERE, "Failed in the snapshot thread for " + camera.getName() + ": ", e);
                     error = "Snapshot thread exited " + e.toString();
                 }
             }
         });
-        snapshotThread.setName("Polling snapshots from "+cameraConfig.getName());
+        snapshotThread.setName("Polling snapshots from "+camera.getName());
         snapshotThread.setDaemon(true);
         snapshotThread.start();
     }
@@ -90,10 +93,10 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
     }
 
     private void interrogateOnvif() throws SOAPException, SAXException, IOException {
-        onvif = new ONVIFCamera(cameraConfig.getAddress(), cameraConfig.getUser(), cameraConfig.getPassword());
+        onvif = new ONVIFCamera(camera.getAddress(), camera.getUser(), camera.getPassword());
 
-        highresProfile = onvif.getProfiles().get(cameraConfig.getProfileNumber());
-        lowresProfile = onvif.getProfiles().get(cameraConfig.getLowresProfileNumber());
+        highresProfile = onvif.getProfiles().get(camera.getProfileNumber());
+        lowresProfile = onvif.getProfiles().get(camera.getLowResProfileNumber());
     }
 
 
@@ -102,18 +105,18 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
             return;
         }
 
-        snapshotThread.setName("Polling snapshots from "+cameraConfig.getName()+" via "+lowresProfile.getSnapshotUri());
+        snapshotThread.setName("Polling snapshots from "+camera.getName()+" via "+lowresProfile.getSnapshotUri());
         streamThread = new Thread(() -> {
             try {
                 streamer();
             } catch (Throwable e) {
                 if (!keepRunning) {
-                    log.log(Level.SEVERE, "Failed in the streaming thread for " + cameraConfig.getName() + ": ", e);
+                    log.log(Level.SEVERE, "Failed in the streaming thread for " + camera.getName() + ": ", e);
                     error = "Streaming thread exited " + e.toString();
                 }
             }
         });
-        streamThread.setName("Streaming from "+cameraConfig.getName()+" via "+lowresProfile.getSnapshotUri());
+        streamThread.setName("Streaming from "+camera.getName()+" via "+lowresProfile.getSnapshotUri());
         streamThread.setDaemon(true);
         streamThread.start();
     }
@@ -124,15 +127,15 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
     }
 
     public File getChunkDir() {
-        return new File(lightMotion.getConfig().getChunkRoot(), cameraConfig.getName());
+        return new File(lightMotion.getConfig().getChunkRoot(), camera.getName());
     }
 
     public File getWorkingDir() {
-        return new File(lightMotion.getConfig().getWorkingRoot(), cameraConfig.getName());
+        return new File(lightMotion.getConfig().getWorkingRoot(), camera.getName());
     }
 
     public File getStateDir() {
-        return new File(lightMotion.getConfig().getStateRoot(), cameraConfig.getName());
+        return new File(lightMotion.getConfig().getStateRoot(), camera.getName());
     }
 
     private long getStreamerPid() {
@@ -233,7 +236,7 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
                             imageBytes = IOUtils.toByteArray(content);
                         }
 
-                        String imageName = cameraConfig.getName()+"-"+getTimeStamp();
+                        String imageName = camera.getName()+"-"+getTimeStamp();
 
                         // This might block while waiting for room in the queue, so we do this after closing the http response
                         lightMotion.getSnapshots().add(new CameraSnapshotByteArray(snapshotProcessingManager, imageName, imageBytes));
@@ -256,12 +259,12 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
                 lowresSnapshotLoader();
             } catch (Throwable e) {
                 if (!keepRunning) {
-                    log.log(Level.SEVERE, "Failed in the lowres loading thread for " + cameraConfig.getName() + ": ", e);
+                    log.log(Level.SEVERE, "Failed in the lowres loading thread for " + camera.getName() + ": ", e);
                     error = "Lowres loading thread exited " + e.toString();
                 }
             }
         });
-        lowresSnapshotThread.setName("Loading lowres snapshots from "+cameraConfig.getName()+" via "+lowresProfile.getSnapshotUri());
+        lowresSnapshotThread.setName("Loading lowres snapshots from "+camera.getName()+" via "+lowresProfile.getSnapshotUri());
         lowresSnapshotThread.setDaemon(true);
         lowresSnapshotThread.start();
 
@@ -322,7 +325,7 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
             fileList.remove(fileList.size()-1); // Don't load the newest file.
 
             for (File file : fileList) {
-                String imageName = cameraConfig.getName()+"-"+getTimeStamp();
+                String imageName = camera.getName()+"-"+getTimeStamp();
 
                 CameraSnapshotFile sn = new CameraSnapshotFile(snapshotProcessingManager, imageName, file);
                 if (lightMotion.getSnapshots().offer(sn)) {
@@ -334,7 +337,7 @@ public class CameraManager implements dk.dren.lightmotion.core.events.LightMotio
     }
 
     @Override
-    public void notify(LightMotionEvent event) {
+    public void notify(Event event) {
         lightMotion.notify(event);
         //TODO: Notify the event log
     }

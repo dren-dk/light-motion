@@ -26,16 +26,16 @@
                 <constraints unique="true"/>
             </column>
 
-            <column name="user" type="varchar(40)" remarks="The user name to use when making requests to the camera"/>
-            <column name="password" type="varchar(40)" remarks="The password to use when making requests to the camera, it's stored in clear text on the camera"/>
+            <column name="onvifuser" type="varchar(40)" remarks="The user name to use when making requests to the camera"/>
+            <column name="onvifpassword" type="varchar(40)" remarks="The password to use when making requests to the camera, it's stored in clear text on the camera"/>
 
-            <column name="profileNumber" type="int" defaultValue="0" remarks="The number of the onvif profile used for high-res video">
+            <column name="profilenumber" type="int" defaultValue="0" remarks="The number of the onvif profile used for high-res video">
                 <constraints nullable="false"/>
             </column>
-            <column name="lowresProfileNumber" type="int" defaultValue="1" remarks="The number of the onvif profile used for low-res video">
+            <column name="lowresprofilenumber" type="int" defaultValue="1" remarks="The number of the onvif profile used for low-res video">
                 <constraints nullable="false"/>
             </column>
-            <column name="lowresSnapshot" type="boolean" defaultValue="false" remarks="If true then pull snapshots from the camera as jpeg rather than decoding a low-res video stream">
+            <column name="lowressnapshot" type="boolean" defaultValue="false" remarks="If true then pull snapshots from the camera as jpeg rather than decoding a low-res video stream">
                 <constraints nullable="false"/>
             </column>
         </createTable>

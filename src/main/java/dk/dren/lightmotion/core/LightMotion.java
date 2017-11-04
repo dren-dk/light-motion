@@ -1,13 +1,16 @@
 package dk.dren.lightmotion.core;
 
-import dk.dren.lightmotion.core.events.LightMotionEvent;
+import dk.dren.lightmotion.core.events.LightMotionEventSink;
+import dk.dren.lightmotion.db.Database;
+import dk.dren.lightmotion.db.entity.Camera;
+import dk.dren.lightmotion.db.entity.Event;
 import io.dropwizard.lifecycle.Managed;
 import lombok.Getter;
 import lombok.extern.java.Log;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -17,17 +20,19 @@ import java.util.logging.Level;
  * The core class of the light motion system
  */
 @Log
-public class LightMotion implements Managed, dk.dren.lightmotion.core.events.LightMotionEventSink {
+public class LightMotion implements Managed, LightMotionEventSink {
+    @Getter
+    private final Database database;
     @Getter
     private LightMotionConfig config;
     private Thread motionThread;
     private boolean keepRunning = true;
-    private final Map<String, CameraManager> cameraManagers = new TreeMap<>();
+    private final Map<Long, CameraManager> cameraManagers = new TreeMap<>();
     @Getter
     private final ArrayBlockingQueue<CameraSnapshot> snapshots;
-    private final int RTSP_CLIENT_PORT_BASE = 40000;
 
-    public LightMotion(LightMotionConfig config) throws IOException {
+    public LightMotion(Database database, LightMotionConfig config) throws IOException {
+        this.database = database;
         this.config = config;
 
         mkdir(config.getWorkingRoot(), "workingRoot");
@@ -35,7 +40,21 @@ public class LightMotion implements Managed, dk.dren.lightmotion.core.events.Lig
         mkdir(config.getChunkRoot(), "chunkRoot");
 
         for (CameraConfig cameraConfig : config.getCameras()) {
-            cameraManagers.put(cameraConfig.getAddress(), new CameraManager(this, cameraConfig));
+            Camera oldCam = database.getCameraByName(cameraConfig.getName());
+
+            Camera newCam = new Camera(null, null, cameraConfig.getName(), cameraConfig.getAddress(),
+                    cameraConfig.getUser(), cameraConfig.getPassword(), cameraConfig.getProfileNumber(),
+                    cameraConfig.getLowresProfileNumber(), cameraConfig.isLowresSnapshot());
+
+            if (oldCam == null) {
+                database.insertCamera(newCam);
+            } else if (!oldCam.equals(newCam)) {
+                database.updateCameraByName(newCam);
+            }
+        }
+
+        for (Camera camera : database.getAllCameras()) {
+            cameraManagers.put(camera.getId(), new CameraManager(this, camera));
         }
 
         snapshots = new ArrayBlockingQueue<>(cameraManagers.size()*2);
@@ -87,7 +106,7 @@ public class LightMotion implements Managed, dk.dren.lightmotion.core.events.Lig
         int spread = config.getPollInterval()/cameraManagers.size();
 
         for (CameraManager cameraManager : cameraManagers.values()) {
-            log.info("Starting camera manager "+cameraManager.getCameraConfig().getName()+" with ONVIF address "+cameraManager.getCameraConfig().getAddress());
+            log.info("Starting camera manager "+cameraManager.getCamera().getName()+" with ONVIF address "+cameraManager.getCamera().getAddress());
             cameraManager.start();
             Thread.sleep(spread);
         }
@@ -101,7 +120,7 @@ public class LightMotion implements Managed, dk.dren.lightmotion.core.events.Lig
     }
 
     @Override
-    public void notify(LightMotionEvent event) {
+    public void notify(Event event) {
         log.info("Event happened "+event);
     }
 

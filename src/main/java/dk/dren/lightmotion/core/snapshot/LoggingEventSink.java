@@ -1,6 +1,6 @@
 package dk.dren.lightmotion.core.snapshot;
 
-import dk.dren.lightmotion.core.events.LightMotionEvent;
+import dk.dren.lightmotion.db.entity.Event;
 import dk.dren.lightmotion.core.events.LightMotionEventSink;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,7 +14,7 @@ public class LoggingEventSink implements LightMotionEventSink {
     private String prefix;
 
     @Override
-    public void notify(LightMotionEvent event) {
+    public void notify(Event event) {
         log.info(prefix+event.toString());
     }
 }

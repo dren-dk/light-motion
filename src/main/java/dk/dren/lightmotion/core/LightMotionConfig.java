@@ -17,7 +17,8 @@ import java.util.List;
 public class LightMotionConfig {
 
     /**
-     * The cameras to pull from
+     * The cameras to pull data from, these are inserted into the database, unless they already exist.
+     * If an existing camera exists with the same name it's updated with the data found in the yaml
      */
     @NotEmpty
     @JsonProperty
