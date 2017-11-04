@@ -3,6 +3,8 @@ package dk.dren.lightmotion.core.snapshot;
 import dk.dren.lightmotion.core.events.LightMotionEvent;
 import dk.dren.lightmotion.core.events.LightMotionEventType;
 import lombok.extern.java.Log;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -345,6 +347,7 @@ public class MotionDetector implements SnapshotProcessor {
 
         File debugFile = new File(debugDir, "debug-" + image.getName() + ".png");
         try {
+            FileUtils.forceMkdirParent(debugFile);
             ImageIO.write(debug, "png", debugFile);
         } catch (IOException e) {
             throw new RuntimeException("Fail!");

@@ -1,19 +1,23 @@
 package dk.dren.lightmotion;
 
+import com.google.common.base.Preconditions;
 import dk.dren.lightmotion.config.ServerConfiguration;
 import dk.dren.lightmotion.core.LightMotion;
-import dk.dren.lightmotion.db.PhoneDB;
 import dk.dren.lightmotion.healthchecks.DiskSpaceCheck;
 import dk.dren.lightmotion.injectors.InjectorBinder;
 import dk.dren.lightmotion.resources.BabelResource;
 import dk.dren.lightmotion.resources.FrontPageResource;
 import io.dropwizard.Application;
 import io.dropwizard.assets.AssetsBundle;
+import io.dropwizard.db.PooledDataSourceFactory;
 import io.dropwizard.forms.MultiPartBundle;
+import io.dropwizard.jdbi.DBIFactory;
+import io.dropwizard.migrations.MigrationsBundle;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 import io.federecio.dropwizard.swagger.SwaggerBundle;
 import io.federecio.dropwizard.swagger.SwaggerBundleConfiguration;
+import org.skife.jdbi.v2.DBI;
 
 /**
  * This is the main bootstrapping class of the application, it's what brings all the bits together and starts the application
@@ -48,9 +52,14 @@ public class Server extends Application<ServerConfiguration>{
 	 */
 	@Override
 	public void initialize(Bootstrap<ServerConfiguration> bootstrap) {
-		// Add commands		
 		//bootstrap.addCommand(new SomeCommand());
-		
+		bootstrap.addBundle(new MigrationsBundle<ServerConfiguration>() {
+			@Override
+			public PooledDataSourceFactory getDataSourceFactory(ServerConfiguration serverConfiguration) {
+				return serverConfiguration.getLightMotion().getDatabase();
+			}
+		});
+
 		// We'll need to serve static files from our own classpath, this causes /static/ in the classpath to be exposed as /static/
 		bootstrap.addBundle(new AssetsBundle("/META-INF/resources/webjars/", "/webjars/", "index.html", "webjars"));
 		bootstrap.addBundle(new AssetsBundle("/static/", "/static/", "index.html", "static"));
@@ -69,10 +78,14 @@ public class Server extends Application<ServerConfiguration>{
 
 	@Override
 	public void run(ServerConfiguration configuration, Environment environment) throws Exception {
+
+        final DBIFactory factory = new DBIFactory();
+        final DBI jdbi = factory.build(environment, configuration.getLightMotion().getDatabase(), "postgresql");
+
 		// Register injectors.
 		LightMotion cameraManager = new LightMotion(configuration.getLightMotion());
 
-		environment.jersey().register(new InjectorBinder(configuration, new PhoneDB()));
+		environment.jersey().register(new InjectorBinder(configuration));
 
 		// Register healthchecks, there really should be many more than just one.
 		environment.healthChecks().register("Disk-space", new DiskSpaceCheck());

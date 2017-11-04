@@ -45,6 +45,17 @@ lightMotion:
 #      address: 10.0.2.97:8080
 #    - name: Vest-Nord
 #      address: 10.0.2.98:8080
-
-
-
+  database:
+    driverClass: org.postgresql.Driver
+    user: lm
+    password: lm
+    url: jdbc:postgresql://localhost:5433/lm
+    properties:
+      charSet: UTF-8
+    maxWaitForConnection: 1s
+    validationQuery: "/* MyService Health Check */ SELECT 1"
+    minSize: 1
+    maxSize: 10
+    checkConnectionWhileIdle: false
+    evictionInterval: 60s
+    minIdleTime: 1 minute

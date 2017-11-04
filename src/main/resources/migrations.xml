@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd
+        http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+
+    <preConditions>
+        <runningAs username="lm"/>
+    </preConditions>
+
+    <changeSet id="1" author="ff">
+        <createTable tableName="camera" remarks="A camera that the system manages">
+            <column name="id" type="int" autoIncrement="true" remarks="The ID that uniquely identifies the camera">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created" type="timestamp" defaultValueComputed="now()" remarks="The time that the camera was created">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="varchar(40)" remarks="The human-readable name of the camera">
+                <constraints unique="true"/>
+            </column>
+            <column name="address" type="varchar(40)" remarks="The address of the ONVIF endpoint as ip:port">
+                <constraints unique="true"/>
+            </column>
+
+            <column name="user" type="varchar(40)" remarks="The user name to use when making requests to the camera"/>
+            <column name="password" type="varchar(40)" remarks="The password to use when making requests to the camera, it's stored in clear text on the camera"/>
+
+            <column name="profileNumber" type="int" defaultValue="0" remarks="The number of the onvif profile used for high-res video">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lowresProfileNumber" type="int" defaultValue="1" remarks="The number of the onvif profile used for low-res video">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lowresSnapshot" type="boolean" defaultValue="false" remarks="If true then pull snapshots from the camera as jpeg rather than decoding a low-res video stream">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="event" remarks="An event that has happened">
+            <column name="id" type="int" autoIncrement="true" remarks="The id of the event">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created" type="timestamp" defaultValueComputed="now()" remarks="The time the event happened">
+                <constraints nullable="false"/>
+            </column>
+            <column name="camera_id" type="int" remarks="The camera the event is related to">
+                <constraints nullable="false"
+                    foreignKeyName="fk_camera"
+                    references="camera(id)"/>
+            </column>
+
+            <column name="type" type="varchar(20)" remarks="The type of event as defined by the LightMotionEvent enum">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="canceling" type="boolean" remarks="true if this is the canceling event that marks the end of an event">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="text" type="varchar(100)" remarks="The human-readable text the describes the event">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+
+    </changeSet>
+
+
+</databaseChangeLog>

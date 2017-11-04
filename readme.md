@@ -21,6 +21,17 @@ If the CPU is wimpy enough to not be able to decode 1 fps low-res video from the
 an alternative low-res mode to fetch jpeg snapshots from the cameras, this costs more CPU per frame but allows
 arbitrarily low FPS.
 
+Creating the database
+---------------------
+
+* Install postgresql
+* Create the lm user and use it to create the lm database
+* Change the password, user name and database url in the server.yaml file if you aren't using the default.
+* Create the databse using:
+```
+java -jar target/light-motion-0.0.1-SNAPSHOT.jar db migrate server.yaml
+```
+
 
 Building And Running
 --------------------
@@ -58,15 +69,23 @@ Make sure that all the ddns/p2p "features" are turned off and firewall the camer
 from the Internet, user-accessible LAN and each other.
 
 
-Dependencies
-------------
+External Dependencies
+---------------------
 
+All the java libraries are included in the executable jar file, so you don't need to mess with those,
+however some external programs are needed that you will have to provide
+
+* **java**: Java 8 is required to run the code 
 * **ffmpeg**: Light motion doesn't touch the RTSP streams directly, in stead it relies on the excellent ffmpeg tool.
+* **postgresql**: All data is stored in a postgresql database
 
 If you're running ubuntu server, then run:
 ```
-   sudo apt-get install ffmpeg
+   sudo apt-get install ffmpeg postgresql openjdk-8-jdk-headless
 ```
 
-   
-   
+Docker
+------
+
+Eventually I'll build a docker image that includes all the dependencies and a ready-to-run
+LightMotion server, but for now you have to do that yourself, sorry.   

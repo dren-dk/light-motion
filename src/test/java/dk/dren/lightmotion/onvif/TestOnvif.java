@@ -57,7 +57,7 @@ public class TestOnvif {
     public void testPasswordHash() throws UnsupportedEncodingException {
         String nonceBase64 = "LTc4MjEyMzM4Ng==";
         String nonce = new String(Base64.decodeBase64(nonceBase64), "UTF-8");
-        Assert.assertEquals("12r4n9X85IdnhP9GfDmc4nwEKIg=", ONVIFCamera.hashPassword("admin", "test", "2017-01-13T21:03:12Z", nonce));
+        Assert.assertEquals("12r4n9X85IdnhP9GfDmc4nwEKIg=", ONVIFCamera.hashPassword( "test", "2017-01-13T21:03:12Z", nonce));
     }
 
     /* Failed:
@@ -77,7 +77,7 @@ public class TestOnvif {
     public void testPasswordHashBroken() throws UnsupportedEncodingException {
         String nonceBase64 = "MTU5OTlhNDc5ZGY=";
         String nonce = new String(Base64.decodeBase64(nonceBase64), "UTF-8");
-        Assert.assertEquals("BvSNMGwzTZOD2F3WA9hHNiWiNkg=", ONVIFCamera.hashPassword("admin", "test", "2017-01-13T21:03:29Z", nonce));
+        Assert.assertEquals("BvSNMGwzTZOD2F3WA9hHNiWiNkg=", ONVIFCamera.hashPassword("test", "2017-01-13T21:03:29Z", nonce));
     }
 
     /*

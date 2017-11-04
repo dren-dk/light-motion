@@ -1,8 +1,12 @@
 package dk.dren.lightmotion.core;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.dropwizard.db.DataSourceFactory;
 import lombok.Data;
 import org.hibernate.validator.constraints.NotEmpty;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
 
 /**
  * A camera to stream from.

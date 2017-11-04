@@ -98,7 +98,7 @@ public class ONVIFCamera {
         return call(client, "GetProfiles").stream().map(ONVIFProfile::new).collect(Collectors.toList());
     }
 
-    List<Element> call(CloseableHttpClient client, String method, String... args) throws IOException, SAXException {
+    private List<Element> call(CloseableHttpClient client, String method, String... args) throws IOException, SAXException {
         String uri = "http://"+cameraAddressAndPort+"/onvif/media";
 
         HttpPost request = new HttpPost(uri);
@@ -107,7 +107,7 @@ public class ONVIFCamera {
         request.setHeader("Accept", "application/soap+xml, multipart/related");
         String requestXmlTemplate = getTemplate(method);
 
-        Map<String, String> argsWithCredentials = new TreeMap();
+        Map<String, String> argsWithCredentials = new TreeMap<>();
 
         String nonce = Long.toHexString(System.currentTimeMillis());
         String authHeader = createAuthHeader(user, password, time, nonce);
@@ -145,18 +145,23 @@ public class ONVIFCamera {
         }
     }
 
-    static String createAuthHeader(String user, String password, String time, String nonce) throws IOException {
+    /**
+     * Generates the authentication header needed by ONVIF, notice how the plain text password is hashed on the client
+     * this means that the server must have the password in clear text to be able to verify the hash, so don't ever use
+     * a valuable password for any ONVIF device, the protocol demands bad password security.
+     */
+    private static String createAuthHeader(String user, String password, String time, String nonce) throws IOException {
 
         Map<String, String> vars = new TreeMap<>();
         vars.put("user", user);
         vars.put("time", time);
         vars.put("nonce", Base64.encodeBase64String(nonce.getBytes("UTF-8")));
-        vars.put("hash", hashPassword(user, password, time, nonce));
+        vars.put("hash", hashPassword(password, time, nonce));
 
         return interpolate(getTemplate("Header"), vars);
     }
 
-    static String hashPassword(String user, String password, String time, String nonce) {
+    protected static String hashPassword(String password, String time, String nonce) {
         return Base64.encodeBase64String(DigestUtils.sha1(nonce + time + password));
     }
 
@@ -185,7 +190,7 @@ public class ONVIFCamera {
         return sb.toString();
     }
 
-    static Element xmlChild(Element element, String... tagNames) {
+    private static Element xmlChild(Element element, String... tagNames) {
         String path = "";
         tag: for (String tag : tagNames) {
             if (!path.isEmpty()) {
@@ -206,7 +211,7 @@ public class ONVIFCamera {
         return element;
     }
 
-    static List<Element> xmlElements(NodeList nodes) {
+    private static List<Element> xmlElements(NodeList nodes) {
         List<Element> result = new ArrayList<>();
         for (int i=0;i<nodes.getLength();i++) {
             Node item = nodes.item(i);
@@ -217,11 +222,11 @@ public class ONVIFCamera {
         return result;
     }
 
-    static List<Element> xmlChildren(Element element, String... tagNames) {
+    private static List<Element> xmlChildren(Element element, String... tagNames) {
         return xmlElements(xmlChild(element, tagNames).getChildNodes());
     }
 
-    static String xmlText(Element element, String... tagNames) {
+    private static String xmlText(Element element, String... tagNames) {
         return xmlChild(element, tagNames).getTextContent();
     }
 
