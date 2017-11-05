@@ -1,9 +1,11 @@
 package dk.dren.lightmotion.core;
 
-import dk.dren.lightmotion.core.events.LightMotionEventSink;
+import dk.dren.lightmotion.core.events.EventSink;
+import dk.dren.lightmotion.core.events.EventSinkWithMotionConfigOracle;
 import dk.dren.lightmotion.db.Database;
 import dk.dren.lightmotion.db.entity.Camera;
 import dk.dren.lightmotion.db.entity.Event;
+import dk.dren.lightmotion.db.entity.MotionConfig;
 import io.dropwizard.lifecycle.Managed;
 import lombok.Getter;
 import lombok.extern.java.Log;
@@ -20,7 +22,7 @@ import java.util.logging.Level;
  * The core class of the light motion system
  */
 @Log
-public class LightMotion implements Managed, LightMotionEventSink {
+public class LightMotion implements Managed, EventSinkWithMotionConfigOracle {
     @Getter
     private final Database database;
     @Getter
@@ -30,6 +32,8 @@ public class LightMotion implements Managed, LightMotionEventSink {
     private final Map<Long, CameraManager> cameraManagers = new TreeMap<>();
     @Getter
     private final ArrayBlockingQueue<CameraSnapshot> snapshots;
+    private final Map<Integer, MotionConfig> motionConfigurations = new TreeMap<>();
+    private MotionConfig defaultMotionConfig;
 
     public LightMotion(Database database, LightMotionConfig config) throws IOException {
         this.database = database;
@@ -39,28 +43,78 @@ public class LightMotion implements Managed, LightMotionEventSink {
         mkdir(config.getStateRoot(), "stateRoot");
         mkdir(config.getChunkRoot(), "chunkRoot");
 
+        // Allow updating the basic information about cameras via the yaml file
         for (CameraConfig cameraConfig : config.getCameras()) {
             Camera oldCam = database.getCameraByName(cameraConfig.getName());
 
             Camera newCam = new Camera(null, null, cameraConfig.getName(), cameraConfig.getAddress(),
                     cameraConfig.getUser(), cameraConfig.getPassword(), cameraConfig.getProfileNumber(),
-                    cameraConfig.getLowresProfileNumber(), cameraConfig.isLowresSnapshot());
+                    cameraConfig.getLowresProfileNumber(), cameraConfig.isLowresSnapshot(), null);
 
             if (oldCam == null) {
                 database.insertCamera(newCam);
-            } else if (!oldCam.equals(newCam)) {
+            } else if (!oldCam.basicFieldsEquals(newCam)) {
                 database.updateCameraByName(newCam);
             }
         }
 
-        for (Camera camera : database.getAllCameras()) {
-            cameraManagers.put(camera.getId(), new CameraManager(this, camera));
-        }
+        configureFromDatabase();
 
         snapshots = new ArrayBlockingQueue<>(cameraManagers.size()*2);
     }
 
-    public static void mkdir(File dir, String name) {
+    public MotionConfig getMotionConfig(Camera camera) {
+        synchronized (motionConfigurations) {
+            Integer motionConfigId = camera.getMotionConfigId();
+            if (motionConfigId != null) {
+                return motionConfigurations.get(motionConfigId);
+            } else {
+                return defaultMotionConfig;
+            }
+        }
+    }
+
+    /**
+     * Call this when the database configuration has been changed to update the running system
+     */
+    public void configureFromDatabase() {
+        synchronized (motionConfigurations) {
+            for (MotionConfig motionConfig : database.getAllMotionConfigs()) {
+                motionConfigurations.put(motionConfig.getId(), motionConfig);
+            }
+
+            if (motionConfigurations.isEmpty()) {
+                int id = database.createDefaultMotionConfig();
+                MotionConfig defaultConfig = database.getMotionConfig(id);
+                motionConfigurations.put(defaultConfig.getId(), defaultConfig);
+            }
+
+            defaultMotionConfig = motionConfigurations.values().iterator().next();
+        }
+
+        synchronized (cameraManagers) {
+            for (Camera camera : database.getAllCameras()) {
+                CameraManager cameraManager = cameraManagers.get(camera.getId());
+
+                if (cameraManager == null) {
+                    cameraManagers.put(camera.getId(), new CameraManager(this, camera));
+
+                } else if (cameraManager.getCamera().basicFieldsEquals(camera)) {
+                    cameraManager.setCamera(camera);
+
+                } else {
+                    try {
+                        cameraManager.stop();
+                    } catch (InterruptedException e) {
+                        log.log(Level.WARNING, "Was interrupted while waiting for reconfigured camera manager to stop", e);
+                    }
+                    cameraManagers.put(camera.getId(), new CameraManager(this, camera));
+                }
+            }
+        }
+    }
+
+    static void mkdir(File dir, String name) {
         try {
             FileUtils.forceMkdir(dir);
         } catch (IOException e) {
@@ -119,11 +173,6 @@ public class LightMotion implements Managed, LightMotionEventSink {
 
     }
 
-    @Override
-    public void notify(Event event) {
-        log.info("Event happened "+event);
-    }
-
     public File getFfmpeg() {
         for (String path : System.getenv("PATH").split(File.pathSeparator)) {
             File f = new File(path+"/ffmpeg");
@@ -133,5 +182,10 @@ public class LightMotion implements Managed, LightMotionEventSink {
         }
 
         return null;
+    }
+
+    @Override
+    public void notify(Event event) {
+        database.insertEvent(event);
     }
 }

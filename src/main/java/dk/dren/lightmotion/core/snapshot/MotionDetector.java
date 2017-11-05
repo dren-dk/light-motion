@@ -2,6 +2,7 @@ package dk.dren.lightmotion.core.snapshot;
 
 import dk.dren.lightmotion.db.entity.Event;
 import dk.dren.lightmotion.core.events.LightMotionEventType;
+import dk.dren.lightmotion.db.entity.MotionConfig;
 import lombok.extern.java.Log;
 import org.apache.commons.io.FileUtils;
 
@@ -22,8 +23,6 @@ public class MotionDetector implements SnapshotProcessor {
     private final File averageFile;
     private final File debugDir;
     private final File maskFile;
-    private final int threshold;
-    private final int minArea;
 
     private FixedPointPixels average;
     private FixedPointPixels noise;
@@ -36,9 +35,6 @@ public class MotionDetector implements SnapshotProcessor {
         averageFile = new File(manager.getStateDir(), "average.png");
         debugDir = System.getProperty("debug.dir", "").isEmpty() ? null : new File(System.getProperty("debug.dir"));
         maskFile = new File(manager.getStateDir(), "movement-mask.png");
-
-        threshold = 40;
-        minArea = 3;
     }
 
     private BitPixels loadCompatibleMask(FixedPointPixels snapshot) {
@@ -170,16 +166,17 @@ public class MotionDetector implements SnapshotProcessor {
             FixedPointPixels diff = motionDetect(average, blocky, mask, 4, blocky.getWidth()/2, blocky.getHeight()/2);
             long t1 = System.nanoTime();
             if (noise == null) {
-                noise = diff.clone(manager.getCamera()+"-noise");
+                noise = diff.clone(manager.getCamera().getName()+"-noise");
             }
             updateAverageAndSubtract(noise, diff, 4);
 
 
-            log.fine(manager.getCamera()+": diff time: "+(t1-t0));
+            log.fine(manager.getCamera().getName()+": diff time: "+(t1-t0));
 
             storeState();
 
-            MotionDetectionResult detected = analyzeDiff(diff, threshold);
+            MotionConfig motionConfig = manager.getMotionConfig();
+            MotionDetectionResult detected = analyzeDiff(diff, motionConfig.getMotionThreshold());
             if (debugDir != null) {
                 storeDebug(debugDir, average, image, diff, noise, detected);
             }

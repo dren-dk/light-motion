@@ -5,6 +5,6 @@ import dk.dren.lightmotion.db.entity.Event;
 /**
  *
  */
-public interface LightMotionEventSink {
+public interface EventSink {
     void notify(Event event);
 }

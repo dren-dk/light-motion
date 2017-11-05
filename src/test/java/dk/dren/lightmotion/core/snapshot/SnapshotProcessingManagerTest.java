@@ -21,7 +21,7 @@ public class SnapshotProcessingManagerTest {
     @Test
     public void detectMovement() throws IOException {
 
-        LoggingEventSink loggingEventConsumer = new LoggingEventSink();
+        TestEventSink loggingEventConsumer = new TestEventSink();
         File workingDir = File.createTempFile("test", ".dir");
         FileUtils.forceDelete(workingDir);
         FileUtils.forceMkdir(workingDir);
@@ -34,7 +34,7 @@ public class SnapshotProcessingManagerTest {
             IOUtils.copy(is, os);
         }
 
-        Camera camera = new Camera(null, null, "test", null, null, null, 0,0, false);
+        Camera camera = new Camera(null, null, "test", null, null, null, 0,0, false, null);
         SnapshotProcessingManager spm = new SnapshotProcessingManager(camera, workingDir, state, pre, false, loggingEventConsumer);
 
         String zipName = "cam3-night-rain";

@@ -16,7 +16,10 @@ public enum LightMotionEventType {
     MOTION,
     WHITEOUT,
     BLACKOUT,
-    GLOBAL_CHANGE, RECORDING;
+    GLOBAL_CHANGE,
+
+    ;
+
 
 
     public boolean isDetection() {

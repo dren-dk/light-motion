@@ -11,7 +11,7 @@ import java.sql.SQLException;
  * Turns a camera row into a Camera object
  */
 public class CameraMapper implements ResultSetMapper<Camera> {
-    public static final String SQL = "SELECT id, created, name, address, onvifuser, onvifpassword, profileNumber, lowresProfileNumber, lowresSnapshot " +
+    public static final String SQL = "SELECT id, created, name, address, onvifuser, onvifpassword, profileNumber, lowresProfileNumber, lowresSnapshot, motion_config_id " +
             "FROM camera ";
 
     @Override
@@ -24,7 +24,8 @@ public class CameraMapper implements ResultSetMapper<Camera> {
                 resultSet.getString("onvifpassword"),
                 resultSet.getInt("profileNumber"),
                 resultSet.getInt("lowresprofilenumber"),
-                resultSet.getBoolean("lowressnapshot")
+                resultSet.getBoolean("lowressnapshot"),
+                (Integer)resultSet.getObject("motion_config_id")
         );
     }
 }

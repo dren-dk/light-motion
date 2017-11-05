@@ -1,24 +1,6 @@
 package dk.dren.lightmotion.core;
 
-import dk.dren.lightmotion.core.events.LightMotionEventSink;
-import dk.dren.lightmotion.db.entity.Camera;
-import dk.dren.lightmotion.db.entity.Event;
-import dk.dren.lightmotion.core.events.LightMotionEventType;
 import lombok.extern.java.Log;
-import org.apache.commons.io.FileUtils;
-
-import java.io.File;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.logging.Level;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * Implements the state machine that:
@@ -26,13 +8,14 @@ import java.util.stream.Collectors;
  * * Preserves pre-recordings while there's movement and concatenates the snippets to one large movie after the movement has ended.
  */
 @Log
-public class MovieMaker implements LightMotionEventSink {
+public class MovieMaker {
+    /*
     private final Camera camera;
     private final File chunkDir;
     private final Integer chunkLength;
     private final Integer chunksBeforeDetection;
     private final Integer chunksAfterDetection;
-    private final LightMotion downstream;
+    private final LightMotionEventSink downstream;
     private final Thread workerThread;
     private final ArrayBlockingQueue<Event> events = new ArrayBlockingQueue<Event>(20);
     private final int quietTailLength;
@@ -56,7 +39,7 @@ public class MovieMaker implements LightMotionEventSink {
                 );
     }
 
-    public MovieMaker(Camera camera, File chunkDir, Integer chunkLength, Integer chunksBeforeDetection, Integer chunksAfterDetection, LightMotion downstream) throws IOException {
+    public MovieMaker(Camera camera, File chunkDir, Integer chunkLength, Integer chunksBeforeDetection, Integer chunksAfterDetection, LightMotionEventSink downstream) throws IOException {
         this.camera = camera;
         this.chunkDir = chunkDir;
         this.chunkLength = chunkLength;
@@ -312,5 +295,5 @@ public class MovieMaker implements LightMotionEventSink {
             return res+"\n"+FileUtils.readFileToString(outFile, "UTF-8")+"\n"+FileUtils.readFileToString(errFile, "UTF-8")+"\nEOM\n";
         }
     }
-
+*/
 }

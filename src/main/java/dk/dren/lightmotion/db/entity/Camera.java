@@ -20,9 +20,9 @@ public class Camera {
     private final int profileNumber;
     private final int lowResProfileNumber;
     private final boolean lowResSnapshot;
+    private final Integer motionConfigId;
 
-    @Override
-    public boolean equals(Object o) {
+    public boolean basicFieldsEquals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
@@ -47,5 +47,21 @@ public class Camera {
         result = 31 * result + lowResProfileNumber;
         result = 31 * result + (lowResSnapshot ? 1 : 0);
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return "Camera{" +
+                "id=" + id +
+                ", created=" + created +
+                ", name='" + name + '\'' +
+                ", address='" + address + '\'' +
+                ", user='" + user + '\'' +
+                ", password='" + password + '\'' +
+                ", profileNumber=" + profileNumber +
+                ", lowResProfileNumber=" + lowResProfileNumber +
+                ", lowResSnapshot=" + lowResSnapshot +
+                ", motionConfigId=" + motionConfigId +
+                '}';
     }
 }

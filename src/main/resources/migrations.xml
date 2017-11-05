@@ -65,8 +65,47 @@
                 <constraints nullable="false"/>
             </column>
         </createTable>
+    </changeSet>
 
 
+    <changeSet id="2" author="ff">
+        <createTable tableName="motion_config" remarks="The configuration of motion detection and retention">
+            <column name="id" type="int" autoIncrement="true" remarks="The ID that uniquely identifies the configuration">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created" type="timestamp" defaultValueComputed="now()" remarks="The time that the camera was created">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="name" type="varchar(40)" remarks="The name of the configuration">
+                <constraints nullable="false" unique="true"/>
+            </column>
+
+            <column name="motion_threshold" type="int" remarks="The number of events to keep after the end of an event">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="chunks_before_event" type="int" remarks="The number of events to keep before the start of an event">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="chunks_after_event" type="int" remarks="The number of events to keep after the end of an event">
+                <constraints nullable="false"/>
+            </column>
+
+        </createTable>
+
+        <addColumn tableName="camera">
+            <column name="config_id" type="int" remarks="The configuration to use for this camera or null to use the default">
+                <constraints nullable="true" references="motion_config(id)" foreignKeyName="fk_config"/>
+            </column>
+        </addColumn>
+
+        <modifyDataType tableName="event" columnName="id" newDataType="bigint"/>
+    </changeSet>
+
+    <changeSet id="3" author="ff">
+        <renameColumn tableName="camera" oldColumnName="config_id" newColumnName="motion_config_id"/>
     </changeSet>
 
 

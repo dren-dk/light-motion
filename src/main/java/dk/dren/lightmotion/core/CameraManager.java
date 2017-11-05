@@ -1,13 +1,12 @@
 package dk.dren.lightmotion.core;
 
-import dk.dren.lightmotion.core.events.LightMotionEventSink;
+import dk.dren.lightmotion.core.events.EventSink;
 import dk.dren.lightmotion.db.entity.Camera;
 import dk.dren.lightmotion.db.entity.Event;
 import dk.dren.lightmotion.core.snapshot.SnapshotProcessingManager;
 import dk.dren.lightmotion.onvif.ONVIFCamera;
 import dk.dren.lightmotion.onvif.ONVIFProfile;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -37,11 +36,10 @@ import java.util.logging.Level;
  * TODO: Split out the 3 threads that manage external processes, so this class gets smaller.
  */
 @Log
-@RequiredArgsConstructor
 @Getter
-public class CameraManager implements LightMotionEventSink {
+public class CameraManager implements EventSink {
     private final LightMotion lightMotion;
-    private final Camera camera;
+    private Camera camera;
     private Thread snapshotThread;
     private Thread streamThread;
     private ONVIFCamera onvif;
@@ -57,6 +55,11 @@ public class CameraManager implements LightMotionEventSink {
     private boolean lowresStreamProcessRunning;
     private boolean lowresStreamProcessKilling;
     private Thread lowresSnapshotThread;
+
+    public CameraManager(LightMotion lightMotion, Camera camera) {
+        this.lightMotion = lightMotion;
+        this.camera = camera;
+    }
 
     void start() {
 
@@ -86,10 +89,12 @@ public class CameraManager implements LightMotionEventSink {
         snapshotThread.start();
     }
 
-    void stop() {
+    void stop() throws InterruptedException {
         keepRunning = false;
         snapshotThread.interrupt();
         streamThread.interrupt();
+        snapshotThread.join();
+        streamThread.join();
     }
 
     private void interrogateOnvif() throws SOAPException, SAXException, IOException {
@@ -340,5 +345,13 @@ public class CameraManager implements LightMotionEventSink {
     public void notify(Event event) {
         lightMotion.notify(event);
         //TODO: Notify the event log
+    }
+
+    public void setCamera(Camera camera) {
+        if (camera.basicFieldsEquals(this.camera)) {
+            this.camera = camera;
+        } else {
+            throw new IllegalArgumentException("Cannot set a basically incompatible camera configuration "+this.camera+" vs. "+camera);
+        }
     }
 }
