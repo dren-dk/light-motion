@@ -5,7 +5,6 @@ import dk.dren.lightmotion.core.LightMotion;
 import dk.dren.lightmotion.db.Database;
 import dk.dren.lightmotion.healthchecks.DiskSpaceCheck;
 import dk.dren.lightmotion.injectors.InjectorBinder;
-import dk.dren.lightmotion.resources.BabelResource;
 import dk.dren.lightmotion.resources.FrontPageResource;
 import io.dropwizard.Application;
 import io.dropwizard.assets.AssetsBundle;
@@ -93,7 +92,6 @@ public class Server extends Application<ServerConfiguration>{
 
 		// Register resources
 		environment.jersey().register(FrontPageResource.class);
-		environment.jersey().register(BabelResource.class);
 
 		environment.lifecycle().manage(cameraManager);
 	}
